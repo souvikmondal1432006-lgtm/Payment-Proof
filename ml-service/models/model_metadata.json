@@ -1,0 +1,52 @@
+{
+  "model_version": "incident-classifier-v1.0.0-rf",
+  "model_type": "RandomForestClassifier",
+  "trained_at": "2026-08-30T14:31:34.729095",
+  "random_seed": 42,
+  "classes": [
+    "BANK_DEBIT_GATEWAY_FAILURE",
+    "DELAYED_CONFIRMATION",
+    "DUPLICATE_PAYMENT",
+    "MISSING_WEBHOOK",
+    "NORMAL",
+    "ORDER_PAYMENT_CONFLICT",
+    "REFUND_UNCERTAINTY",
+    "SETTLEMENT_MISMATCH",
+    "UNRESOLVED"
+  ],
+  "accuracy": 1.0,
+  "macro_f1": 1.0,
+  "features": {
+    "numerical": [
+      "amount",
+      "bank_latency_ms",
+      "gateway_latency_ms",
+      "transaction_age_seconds",
+      "time_of_day_hour",
+      "retry_count",
+      "webhook_attempt_count",
+      "webhook_http_code",
+      "amount_deviation_score",
+      "historical_merchant_failure_rate"
+    ],
+    "categorical": [
+      "payment_method",
+      "bank",
+      "gateway",
+      "bank_status",
+      "gateway_status",
+      "auth_status",
+      "capture_status",
+      "merchant_order_status",
+      "merchant_fulfillment_status",
+      "webhook_status",
+      "settlement_status",
+      "refund_status",
+      "bank_reversal_status"
+    ],
+    "binary": [
+      "is_amount_matched",
+      "is_duplicate_candidate"
+    ]
+  }
+}

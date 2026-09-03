@@ -1,0 +1,174 @@
+{
+  "evaluation_timestamp": "2026-08-30T14:31:34.728066",
+  "dataset_size": 7000,
+  "train_samples": 5600,
+  "test_samples": 1400,
+  "models_compared": {
+    "baseline_logistic_regression": {
+      "accuracy": 0.9979,
+      "macro_precision": 0.9995,
+      "macro_recall": 0.9966,
+      "macro_f1": 0.998,
+      "business_error_cost_inr": 900.0,
+      "classification_report": {
+        "BANK_DEBIT_GATEWAY_FAILURE": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 112.0
+        },
+        "DELAYED_CONFIRMATION": {
+          "precision": 1.0,
+          "recall": 0.9693877551020408,
+          "f1-score": 0.9844559585492227,
+          "support": 98.0
+        },
+        "DUPLICATE_PAYMENT": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 98.0
+        },
+        "MISSING_WEBHOOK": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 112.0
+        },
+        "NORMAL": {
+          "precision": 0.9951534733441034,
+          "recall": 1.0,
+          "f1-score": 0.9975708502024292,
+          "support": 616.0
+        },
+        "ORDER_PAYMENT_CONFLICT": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 98.0
+        },
+        "REFUND_UNCERTAINTY": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 84.0
+        },
+        "SETTLEMENT_MISMATCH": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 84.0
+        },
+        "UNRESOLVED": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 98.0
+        },
+        "accuracy": 0.9978571428571429,
+        "macro avg": {
+          "precision": 0.9994614970382337,
+          "recall": 0.9965986394557823,
+          "f1-score": 0.9980029787501835,
+          "support": 1400.0
+        },
+        "weighted avg": {
+          "precision": 0.9978675282714056,
+          "recall": 0.9978571428571429,
+          "f1-score": 0.9978430911875145,
+          "support": 1400.0
+        }
+      }
+    },
+    "random_forest_classifier_v1": {
+      "accuracy": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1": 1.0,
+      "false_positive_rate_per_class": {
+        "BANK_DEBIT_GATEWAY_FAILURE": 0.0,
+        "DELAYED_CONFIRMATION": 0.0,
+        "DUPLICATE_PAYMENT": 0.0,
+        "MISSING_WEBHOOK": 0.0,
+        "NORMAL": 0.0,
+        "ORDER_PAYMENT_CONFLICT": 0.0,
+        "REFUND_UNCERTAINTY": 0.0,
+        "SETTLEMENT_MISMATCH": 0.0,
+        "UNRESOLVED": 0.0
+      },
+      "business_error_cost_inr": 0.0,
+      "cost_reduction_vs_baseline_pct": 100.0,
+      "classification_report": {
+        "BANK_DEBIT_GATEWAY_FAILURE": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 112.0
+        },
+        "DELAYED_CONFIRMATION": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 98.0
+        },
+        "DUPLICATE_PAYMENT": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 98.0
+        },
+        "MISSING_WEBHOOK": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 112.0
+        },
+        "NORMAL": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 616.0
+        },
+        "ORDER_PAYMENT_CONFLICT": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 98.0
+        },
+        "REFUND_UNCERTAINTY": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 84.0
+        },
+        "SETTLEMENT_MISMATCH": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 84.0
+        },
+        "UNRESOLVED": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 98.0
+        },
+        "accuracy": 1.0,
+        "macro avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 1400.0
+        },
+        "weighted avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 1400.0
+        }
+      }
+    }
+  },
+  "chosen_model": "random_forest_classifier_v1",
+  "selection_rationale": "Random Forest excels across non-linear multi-party telemetry interactions, achieving >98% accuracy and cutting financial misclassification risk cost by over 80%."
+}

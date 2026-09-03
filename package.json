@@ -1,0 +1,23 @@
+{
+  "name": "payment-proof-workspace",
+  "version": "1.0.0",
+  "description": "Payment Proof: Multi-Party Inconsistency Investigation & AI Forensic Platform",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "test:backend": ".\\.maven\\bin\\mvn -f backend/pom.xml test",
+    "start:backend": ".\\.maven\\bin\\mvn -f backend/pom.xml spring-boot:run",
+    "start:ml": ".\\ml-service\\.venv\\Scripts\\python -m uvicorn app.main:app --app-dir ml-service --port 8000"
+  },
+  "keywords": [
+    "payment",
+    "forensics",
+    "fintech",
+    "ai",
+    "investigation",
+    "reconciliation"
+  ],
+  "author": "Payment Proof Core Team",
+  "license": "UNLICENSED"
+}

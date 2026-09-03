@@ -1,0 +1,11 @@
+package com.paymentproof.entity.enums;
+
+public enum AuditAction {
+    INVESTIGATION_STARTED,
+    ML_CLASSIFICATION_RECEIVED,
+    INVESTIGATION_COMPLETED,
+    OPERATOR_REVIEWED_CASE,
+    RESOLUTION_SELECTED,
+    MANUAL_OVERRIDE,
+    SYSTEM_FAILURE
+}
