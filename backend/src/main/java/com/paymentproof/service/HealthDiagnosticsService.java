@@ -17,6 +17,7 @@ public class HealthDiagnosticsService {
 
     private final PaymentRepository paymentRepository;
     private final MlServiceClient mlServiceClient;
+    private final GeminiInvestigationService geminiInvestigationService;
 
     public Map<String, Object> getSystemHealth() {
         Map<String, Object> health = new HashMap<>();
@@ -56,15 +57,38 @@ public class HealthDiagnosticsService {
             mlHealth.put("label", "Unavailable");
         }
 
+        // 4. Gemini Advisory Assistant Check
+        Map<String, Object> geminiHealth = new HashMap<>();
+        geminiHealth.put("name", "GEMINI ASSISTANT");
+        geminiHealth.put("description", "Advisory Investigation Explanations");
+        if (!geminiInvestigationService.isConfigured()) {
+            geminiHealth.put("status", "NOT_CONFIGURED");
+            geminiHealth.put("label", "Advisory (Not Configured)");
+        } else {
+            geminiHealth.put("status", "HEALTHY");
+            geminiHealth.put("label", "Ready (Advisory)");
+        }
+
         Map<String, Object> services = new HashMap<>();
         services.put("backend", backendHealth);
         services.put("database", dbHealth);
         services.put("mlService", mlHealth);
+        services.put("gemini", geminiHealth);
 
-        boolean allHealthy = "HEALTHY".equals(dbHealth.get("status")) && "HEALTHY".equals(mlHealth.get("status"));
-        boolean anyHealthy = "HEALTHY".equals(dbHealth.get("status")) || "HEALTHY".equals(mlHealth.get("status"));
+        // System Health Evaluation: Gemini NOT_CONFIGURED does NOT degrade the system
+        boolean coreDbHealthy = "HEALTHY".equals(dbHealth.get("status"));
+        boolean coreMlHealthy = "HEALTHY".equals(mlHealth.get("status"));
 
-        health.put("status", allHealthy ? "HEALTHY" : (anyHealthy ? "DEGRADED" : "OFFLINE"));
+        String overallStatus;
+        if (!coreDbHealthy) {
+            overallStatus = "OFFLINE";
+        } else if (!coreMlHealthy) {
+            overallStatus = "DEGRADED";
+        } else {
+            overallStatus = "HEALTHY";
+        }
+
+        health.put("status", overallStatus);
         health.put("services", services);
 
         return health;

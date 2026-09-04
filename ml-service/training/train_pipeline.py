@@ -32,14 +32,26 @@ from training.feature_engineering import (
     BINARY_RAW_COLS
 )
 
-def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models", eval_dir: str = "evaluation"):
-    os.makedirs(data_dir, exist_ok=True)
-    os.makedirs(models_dir, exist_ok=True)
-    os.makedirs(eval_dir, exist_ok=True)
+def train_and_evaluate_models(data_dir: str = None, models_dir: str = None, eval_dir: str = None):
+    ml_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if data_dir is None:
+        data_dir = os.path.join(ml_root, "data")
+    if models_dir is None:
+        models_dir = os.path.join(ml_root, "models")
+    if eval_dir is None:
+        eval_dir = os.path.join(ml_root, "evaluation")
+
+    data_dir_abs = os.path.abspath(data_dir)
+    models_dir_abs = os.path.abspath(models_dir)
+    eval_dir_abs = os.path.abspath(eval_dir)
+
+    os.makedirs(data_dir_abs, exist_ok=True)
+    os.makedirs(models_dir_abs, exist_ok=True)
+    os.makedirs(eval_dir_abs, exist_ok=True)
 
     # 1. Dataset Preparation
     print("Generating synthetic historical dataset...", flush=True)
-    df = generate_full_dataset(total_samples=7000, output_dir=data_dir)
+    df = generate_full_dataset(total_samples=7000, output_dir=data_dir_abs)
 
     # 2. Stratified Train / Test Split (80/20)
     X = df.drop(columns=["payment_id", "merchant_id", "target_incident_class"])
@@ -51,8 +63,8 @@ def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models"
 
     train_df = pd.concat([X_train, y_train], axis=1)
     test_df = pd.concat([X_test, y_test], axis=1)
-    train_df.to_csv(os.path.join(data_dir, "train.csv"), index=False)
-    test_df.to_csv(os.path.join(data_dir, "test.csv"), index=False)
+    train_df.to_csv(os.path.join(data_dir_abs, "train.csv"), index=False)
+    test_df.to_csv(os.path.join(data_dir_abs, "test.csv"), index=False)
     print(f"Train split: {len(X_train)} samples, Test split: {len(X_test)} samples.", flush=True)
 
     # 3. Fit Preprocessing Pipeline ONLY on Training Data (Zero Leakage)
@@ -61,7 +73,7 @@ def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models"
     X_train_transformed = preprocessor.fit_transform(X_train)
     X_test_transformed = preprocessor.transform(X_test)
 
-    joblib.dump(preprocessor, os.path.join(models_dir, "preprocessor.joblib"))
+    joblib.dump(preprocessor, os.path.join(models_dir_abs, "preprocessor.joblib"))
 
     # 4. Model 1: Baseline Model (Logistic Regression with Multiclass L2 Regularization)
     print("\n--- Training Baseline Model (Logistic Regression) ---", flush=True)
@@ -76,7 +88,7 @@ def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models"
         y_test, y_pred_base, average="macro", zero_division=0
     )
     print(f"Baseline Accuracy: {base_acc:.4f}, Macro Precision: {base_prec:.4f}, Macro Recall: {base_rec:.4f}, Macro F1: {base_f1:.4f}", flush=True)
-    joblib.dump(baseline_model, os.path.join(models_dir, "baseline_model.joblib"))
+    joblib.dump(baseline_model, os.path.join(models_dir_abs, "baseline_model.joblib"))
 
     # 5. Model 2: Stronger Model (Random Forest Classifier with Balanced Subsample Weighting)
     print("\n--- Training Stronger Model (Random Forest Classifier) ---", flush=True)
@@ -97,7 +109,7 @@ def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models"
         y_test, y_pred_rf, average="macro", zero_division=0
     )
     print(f"Random Forest Accuracy: {rf_acc:.4f}, Macro Precision: {rf_prec:.4f}, Macro Recall: {rf_rec:.4f}, Macro F1: {rf_f1:.4f}", flush=True)
-    joblib.dump(rf_model, os.path.join(models_dir, "incident_classifier_v1.joblib"))
+    joblib.dump(rf_model, os.path.join(models_dir_abs, "incident_classifier_v1.joblib"))
 
     # 6. Detailed Evaluation Metrics & Confusion Matrix
     unique_labels = sorted(list(set(y.unique())))
@@ -187,7 +199,7 @@ def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models"
         "selection_rationale": "Random Forest excels across non-linear multi-party telemetry interactions, achieving >98% accuracy and cutting financial misclassification risk cost by over 80%."
     }
 
-    with open(os.path.join(eval_dir, "metrics_report.json"), "w") as f:
+    with open(os.path.join(eval_dir_abs, "metrics_report.json"), "w") as f:
         json.dump(metrics_report, f, indent=2)
 
     cm_data = {
@@ -195,8 +207,13 @@ def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models"
         "confusion_matrix_baseline": cm_base.tolist(),
         "confusion_matrix_random_forest": cm_rf.tolist()
     }
-    with open(os.path.join(eval_dir, "confusion_matrix.json"), "w") as f:
+    with open(os.path.join(eval_dir_abs, "confusion_matrix.json"), "w") as f:
         json.dump(cm_data, f, indent=2)
+
+    # Extract feature names and weights directly from trained Random Forest model
+    feature_names = list(preprocessor.named_steps["encoder"].get_feature_names_out())
+    importances = [float(v) for v in rf_model.feature_importances_]
+    feature_importance_dict = {name: round(imp, 5) for name, imp in zip(feature_names, importances)}
 
     # Save Model Metadata for runtime API
     metadata = {
@@ -211,9 +228,10 @@ def train_and_evaluate_models(data_dir: str = "data", models_dir: str = "models"
             "numerical": NUMERICAL_RAW_COLS,
             "categorical": CATEGORICAL_RAW_COLS,
             "binary": BINARY_RAW_COLS
-        }
+        },
+        "feature_importances": feature_importance_dict
     }
-    with open(os.path.join(models_dir, "model_metadata.json"), "w") as f:
+    with open(os.path.join(models_dir_abs, "model_metadata.json"), "w") as f:
         json.dump(metadata, f, indent=2)
 
     print("\nModel artifacts and evaluation reports successfully generated!", flush=True)

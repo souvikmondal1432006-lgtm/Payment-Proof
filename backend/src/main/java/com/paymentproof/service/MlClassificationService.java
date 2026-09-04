@@ -92,7 +92,6 @@ public class MlClassificationService {
                 .predictedRootCause(rootCause)
                 .anomalyScore(anomalyScore.setScale(4, RoundingMode.HALF_UP))
                 .confidenceScore(confidenceScore.setScale(4, RoundingMode.HALF_UP))
-                .suggestedAction(suggestedAction)
                 .modelExplanation(explanation)
                 .assessedAt(LocalDateTime.now())
                 .build();

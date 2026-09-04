@@ -54,6 +54,9 @@ public class MlAssessment {
     @Column(name = "model_explanation", columnDefinition = "TEXT")
     private String modelExplanation;
 
+    @Column(name = "gemini_explanation", columnDefinition = "TEXT")
+    private String geminiExplanation;
+
     @CreationTimestamp
     @Column(name = "assessed_at", nullable = false, updatable = false)
     private LocalDateTime assessedAt;

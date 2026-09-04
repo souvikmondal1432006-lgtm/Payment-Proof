@@ -32,9 +32,11 @@ def test_inference_engine_ghost_debit_safety():
     assert response.payment_id == "pay_test_001"
     assert response.confidence >= 0.0 and response.confidence <= 1.0
     assert response.anomaly_score >= 0.0 and response.anomaly_score <= 1.0
-    assert response.is_retry_prohibited_recommendation is True, "Retry must be prohibited when bank is debited!"
-    assert response.recommended_action == "AUTO_REFUND_CUSTOMER" or response.recommended_action != ""
+    assert response.classification in ["BANK_DEBIT_GATEWAY_FAILURE", "ORDER_PAYMENT_CONFLICT", "UNRESOLVED"]
     assert len(response.top_contributing_signals) > 0
+    # Confirm ML service does not provide operational/financial recommendations
+    assert not hasattr(response, "recommended_action") or getattr(response, "recommended_action", None) is None
+    assert not hasattr(response, "is_retry_prohibited_recommendation") or getattr(response, "is_retry_prohibited_recommendation", None) is None
 
 def test_inference_engine_normal_payment():
     engine = MLInferenceEngine(models_dir="models")
@@ -62,5 +64,5 @@ def test_inference_engine_normal_payment():
     response = engine.predict(payload)
 
     assert response.confidence > 0.5
-    assert response.recommended_action == "NO_ACTION_REQUIRED"
-    assert response.is_retry_prohibited_recommendation is False
+    assert response.classification == "NORMAL"
+    assert not hasattr(response, "recommended_action") or getattr(response, "recommended_action", None) is None

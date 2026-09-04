@@ -1,26 +1,26 @@
 {
-  "evaluation_timestamp": "2026-08-30T14:31:34.728066",
+  "evaluation_timestamp": "2026-09-04T14:05:22.197234",
   "dataset_size": 7000,
   "train_samples": 5600,
   "test_samples": 1400,
   "models_compared": {
     "baseline_logistic_regression": {
-      "accuracy": 0.9979,
-      "macro_precision": 0.9995,
-      "macro_recall": 0.9966,
-      "macro_f1": 0.998,
-      "business_error_cost_inr": 900.0,
+      "accuracy": 0.9793,
+      "macro_precision": 0.9934,
+      "macro_recall": 0.962,
+      "macro_f1": 0.9742,
+      "business_error_cost_inr": 13100.0,
       "classification_report": {
         "BANK_DEBIT_GATEWAY_FAILURE": {
-          "precision": 1.0,
+          "precision": 0.9824561403508771,
           "recall": 1.0,
-          "f1-score": 1.0,
+          "f1-score": 0.9911504424778761,
           "support": 112.0
         },
         "DELAYED_CONFIRMATION": {
           "precision": 1.0,
-          "recall": 0.9693877551020408,
-          "f1-score": 0.9844559585492227,
+          "recall": 1.0,
+          "f1-score": 1.0,
           "support": 98.0
         },
         "DUPLICATE_PAYMENT": {
@@ -36,9 +36,9 @@
           "support": 112.0
         },
         "NORMAL": {
-          "precision": 0.9951534733441034,
+          "precision": 0.9580093312597201,
           "recall": 1.0,
-          "f1-score": 0.9975708502024292,
+          "f1-score": 0.9785544082605242,
           "support": 616.0
         },
         "ORDER_PAYMENT_CONFLICT": {
@@ -55,49 +55,49 @@
         },
         "SETTLEMENT_MISMATCH": {
           "precision": 1.0,
-          "recall": 1.0,
-          "f1-score": 1.0,
+          "recall": 0.6785714285714286,
+          "f1-score": 0.8085106382978723,
           "support": 84.0
         },
         "UNRESOLVED": {
           "precision": 1.0,
-          "recall": 1.0,
-          "f1-score": 1.0,
+          "recall": 0.9795918367346939,
+          "f1-score": 0.9896907216494846,
           "support": 98.0
         },
-        "accuracy": 0.9978571428571429,
+        "accuracy": 0.9792857142857143,
         "macro avg": {
-          "precision": 0.9994614970382337,
-          "recall": 0.9965986394557823,
-          "f1-score": 0.9980029787501835,
+          "precision": 0.9933850524011775,
+          "recall": 0.9620181405895691,
+          "f1-score": 0.9742118011873063,
           "support": 1400.0
         },
         "weighted avg": {
-          "precision": 0.9978675282714056,
-          "recall": 0.9978571428571429,
-          "f1-score": 0.9978430911875145,
+          "precision": 0.980120596982347,
+          "recall": 0.9792857142857143,
+          "f1-score": 0.977644963846197,
           "support": 1400.0
         }
       }
     },
     "random_forest_classifier_v1": {
-      "accuracy": 1.0,
-      "macro_precision": 1.0,
-      "macro_recall": 1.0,
-      "macro_f1": 1.0,
+      "accuracy": 0.9836,
+      "macro_precision": 0.9902,
+      "macro_recall": 0.9741,
+      "macro_f1": 0.9812,
       "false_positive_rate_per_class": {
         "BANK_DEBIT_GATEWAY_FAILURE": 0.0,
         "DELAYED_CONFIRMATION": 0.0,
         "DUPLICATE_PAYMENT": 0.0,
         "MISSING_WEBHOOK": 0.0,
-        "NORMAL": 0.0,
+        "NORMAL": 0.0242,
         "ORDER_PAYMENT_CONFLICT": 0.0,
         "REFUND_UNCERTAINTY": 0.0,
-        "SETTLEMENT_MISMATCH": 0.0,
+        "SETTLEMENT_MISMATCH": 0.003,
         "UNRESOLVED": 0.0
       },
-      "business_error_cost_inr": 0.0,
-      "cost_reduction_vs_baseline_pct": 100.0,
+      "business_error_cost_inr": 6300.0,
+      "cost_reduction_vs_baseline_pct": 51.91,
       "classification_report": {
         "BANK_DEBIT_GATEWAY_FAILURE": {
           "precision": 1.0,
@@ -124,9 +124,9 @@
           "support": 112.0
         },
         "NORMAL": {
-          "precision": 1.0,
-          "recall": 1.0,
-          "f1-score": 1.0,
+          "precision": 0.9698890649762282,
+          "recall": 0.9935064935064936,
+          "f1-score": 0.9815557337610264,
           "support": 616.0
         },
         "ORDER_PAYMENT_CONFLICT": {
@@ -142,9 +142,9 @@
           "support": 84.0
         },
         "SETTLEMENT_MISMATCH": {
-          "precision": 1.0,
-          "recall": 1.0,
-          "f1-score": 1.0,
+          "precision": 0.9420289855072463,
+          "recall": 0.7738095238095238,
+          "f1-score": 0.8496732026143791,
           "support": 84.0
         },
         "UNRESOLVED": {
@@ -153,17 +153,17 @@
           "f1-score": 1.0,
           "support": 98.0
         },
-        "accuracy": 1.0,
+        "accuracy": 0.9835714285714285,
         "macro avg": {
-          "precision": 1.0,
-          "recall": 1.0,
-          "f1-score": 1.0,
+          "precision": 0.9902131167203861,
+          "recall": 0.974146224146224,
+          "f1-score": 0.9812476595972672,
           "support": 1400.0
         },
         "weighted avg": {
-          "precision": 1.0,
-          "recall": 1.0,
-          "f1-score": 1.0,
+          "precision": 0.9832729277199751,
+          "recall": 0.9835714285714285,
+          "f1-score": 0.9828649150117144,
           "support": 1400.0
         }
       }

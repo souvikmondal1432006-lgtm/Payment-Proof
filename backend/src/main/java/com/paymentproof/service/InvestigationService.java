@@ -38,6 +38,7 @@ public class InvestigationService {
     private final MlServiceClient mlServiceClient;
     private final TimelineService timelineService;
     private final AiInvestigationService aiInvestigationService;
+    private final GeminiInvestigationService geminiInvestigationService;
 
     @Transactional
     public InvestigationResultDto investigateIncident(String incidentId) {
@@ -73,6 +74,11 @@ public class InvestigationService {
         if (isBankDebited && isMerchantCancelled) {
             contradictions.add(String.format("Cart Cancellation Disconnect: Customer was debited INR %s at Bank, but Merchant marked order %s as CANCELLED (%s).",
                     payment.getAmount(), merchantOrder.getMerchantOrderId(), merchantOrder.getCancellationReason()));
+        }
+
+        if (isBankDebited && isGatewayCaptured && isMerchantCancelled) {
+            contradictions.add(String.format("Payment Capture with Cancelled Order: Bank (UTR: %s) and Gateway confirmed capture of INR %s, but Merchant marked order %s as CANCELLED (%s).",
+                    bank.getUtrNumber(), payment.getAmount(), merchantOrder.getMerchantOrderId(), merchantOrder.getCancellationReason()));
         }
 
         if (isGatewayCaptured && isWebhookFailed) {
@@ -115,22 +121,15 @@ public class InvestigationService {
 
         // 3. Duplicate Investigation Idempotency Check
         Optional<MlAssessment> existingAssessment = mlAssessmentRepository.findByIncidentId(incident.getIncidentId());
-        if (incident.getCaseStatus() == CaseStatus.AI_ANALYZED && existingAssessment.isPresent()) {
-            log.info("Incident {} was already investigated. Returning idempotent result.", incidentId);
-            auditService.logEvent(
-                    "INCIDENT_CASES",
-                    incident.getIncidentId(),
-                    "OPERATOR_REVIEWED_CASE",
-                    ActorType.OPERATOR_USER,
-                    "WORKFLOW_IDEMPOTENT_READER",
-                    String.format("{\"status\":\"%s\"}", incident.getCaseStatus()),
-                    String.format("{\"status\":\"%s\",\"idempotent\":true}", incident.getCaseStatus()),
-                    "127.0.0.1"
-            );
+        if (incident.getCaseStatus() == CaseStatus.RESOLVED ||
+                ((incident.getCaseStatus() == CaseStatus.AI_ANALYZED || incident.getCaseStatus() == CaseStatus.NEEDS_REVIEW) && existingAssessment.isPresent())) {
+            log.info("Incident {} was already investigated or resolved (status: {}). Returning idempotent result.", incidentId, incident.getCaseStatus());
             return buildInvestigationResult(incident, payment, bank, gateway, merchantOrder, webhook, settlement, refund,
                     existingAssessment.map(this::mapAssessmentToDto), contradictions, isRetryProhibited, retryReason, moneyAtRisk,
-                    existingAssessment.get().getPredictedRootCause(), existingAssessment.get().getConfidenceScore(),
-                    existingAssessment.get().getSuggestedAction(), incident.getCaseStatus(), "Existing investigation result returned via idempotent lookup.");
+                    existingAssessment.map(MlAssessment::getPredictedRootCause).orElse("RESOLVED"),
+                    existingAssessment.map(MlAssessment::getConfidenceScore).orElse(null),
+                    existingAssessment.map(MlAssessment::getSuggestedAction).orElse(SuggestedAction.NO_ACTION_REQUIRED),
+                    incident.getCaseStatus(), "Existing investigation result returned via idempotent lookup.");
         }
 
         // 4. Extract Features for ML Classification
@@ -206,36 +205,41 @@ public class InvestigationService {
             assessmentEntity.setPredictedRootCause(predictedRootCause);
             assessmentEntity.setAnomalyScore(anomalyScore);
             assessmentEntity.setConfidenceScore(confidence);
-            
-            if (ml.getSuggestedAction() != null) {
-                assessmentEntity.setSuggestedAction(ml.getSuggestedAction());
-            } else if (ml.getRecommendedAction() != null) {
-                try {
-                    assessmentEntity.setSuggestedAction(SuggestedAction.valueOf(ml.getRecommendedAction()));
-                } catch (IllegalArgumentException e) {
-                    assessmentEntity.setSuggestedAction(SuggestedAction.MANUAL_BANK_ESCALATION);
-                }
-            }
             assessmentEntity.setModelExplanation(modelExplanation);
             assessmentEntity.setAssessedAt(LocalDateTime.now());
+
+            // JAVA AUTHORITATIVE SAFETY & ACTION DETERMINATION
+            // Random Forest ML classifies telemetry features ONLY.
+            // Java deterministic safety rules calculate ALL operational and financial decisions.
+            recommendedAction = determineJavaSafetyAction(
+                    predictedRootCause,
+                    confidence,
+                    isBankDebited,
+                    isGatewayCaptured,
+                    isGatewayFailed,
+                    isMerchantPaid,
+                    isMerchantCancelled,
+                    isWebhookFailed,
+                    settlement,
+                    refund
+            );
+
+            // Record Java's authoritative action decision in the assessment entity
+            assessmentEntity.setSuggestedAction(recommendedAction);
             mlAssessmentRepository.save(assessmentEntity);
 
             if (confidence != null && confidence.compareTo(ML_CONFIDENCE_THRESHOLD) < 0) {
                 finalCaseStatus = CaseStatus.NEEDS_REVIEW;
-                recommendedAction = assessmentEntity.getSuggestedAction() != null ? assessmentEntity.getSuggestedAction() : SuggestedAction.MANUAL_BANK_ESCALATION;
-                summary = String.format("Automated ML prediction confidence (%s%%) is below threshold (70.0%%). Root cause suggested as '%s'. Escalated to operator review.",
-                        confidence.multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP), predictedRootCause);
+                summary = String.format("Automated ML prediction confidence (%s%%) is below threshold (70.0%%). Root cause suggested as '%s'. Java safety decision: %s. Escalated to operator review.",
+                        confidence.multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP), predictedRootCause, recommendedAction);
             } else if (isBankDebited && isMerchantCancelled && !"BANK_DEBIT_GATEWAY_FAILURE".equalsIgnoreCase(predictedRootCause) && !"ORDER_PAYMENT_CONFLICT".equalsIgnoreCase(predictedRootCause)) {
                 finalCaseStatus = CaseStatus.AI_ANALYZED;
-                recommendedAction = SuggestedAction.AUTO_REFUND_CUSTOMER;
-                isRetryProhibited = true;
                 summary = String.format("Investigation concluded: ML model predicted '%s' (%s%% confidence), but deterministic multi-party telemetry confirms active bank debit with cancelled merchant order. Overridden to auto-refund customer.",
                         predictedRootCause, confidence.multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP));
             } else {
                 finalCaseStatus = CaseStatus.AI_ANALYZED;
-                recommendedAction = assessmentEntity.getSuggestedAction() != null ? assessmentEntity.getSuggestedAction() : SuggestedAction.MANUAL_BANK_ESCALATION;
-                summary = String.format("Investigation concluded for %s: Root cause predicted as '%s' with %s confidence. Prohibit retry: %b.",
-                        incident.getIncidentId(), predictedRootCause, confidence, isRetryProhibited);
+                summary = String.format("Investigation concluded for %s: Root cause predicted as '%s' with %s confidence. Authoritative action: %s. Prohibit retry: %b.",
+                        incident.getIncidentId(), predictedRootCause, confidence, recommendedAction, isRetryProhibited);
             }
         }
 
@@ -256,9 +260,86 @@ public class InvestigationService {
                 "127.0.0.1"
         );
 
+        // 9. Gemini Investigation Assistant (Strictly Advisory - Explanations only)
+        List<TimelineEventDto> timelineEvents = timelineService.getTimelineForPayment(payment.getPaymentId());
+        List<String> timelineSummary = timelineEvents.stream()
+                .map(t -> String.format("[%s] %s: %s", t.getTimestamp(), t.getEventType(), t.getDescription()))
+                .limit(10)
+                .collect(Collectors.toList());
+
+        GeminiPromptPayloadDto geminiPayload = GeminiPromptPayloadDto.builder()
+                // 1. PAYMENT FACTS
+                .paymentId(payment.getPaymentId())
+                .incidentId(incident.getIncidentId())
+                .orderId(payment.getOrderId())
+                .amount(payment.getAmount())
+                .currency(payment.getCurrency())
+                .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod() : "UPI")
+                // 2. MULTI-PARTY EVIDENCE & TIMESTAMPS
+                .bankName(bank != null ? bank.getBankName() : null)
+                .bankStatus(bank != null && bank.getBankStatus() != null ? bank.getBankStatus().name() : null)
+                .bankUtr(bank != null ? bank.getUtrNumber() : null)
+                .bankLatencyMs(bank != null ? bank.getNetworkLatencyMs() : null)
+                .bankTimestamp(bank != null && bank.getBankTimestamp() != null ? bank.getBankTimestamp().toString() : (bank != null && bank.getCreatedAt() != null ? bank.getCreatedAt().toString() : null))
+                .gatewayName(gateway != null ? gateway.getGatewayName() : null)
+                .gatewayStatus(gateway != null && gateway.getGatewayStatus() != null ? gateway.getGatewayStatus().name() : null)
+                .gatewayAuthStatus(gateway != null && gateway.getAuthStatus() != null ? gateway.getAuthStatus().name() : null)
+                .gatewayCaptureStatus(gateway != null && gateway.getCaptureStatus() != null ? gateway.getCaptureStatus().name() : null)
+                .gatewayLatencyMs(gateway != null ? gateway.getProcessingLatencyMs() : null)
+                .gatewayTimestamp(gateway != null && gateway.getGatewayTimestamp() != null ? gateway.getGatewayTimestamp().toString() : (gateway != null && gateway.getCreatedAt() != null ? gateway.getCreatedAt().toString() : null))
+                .merchantOrderStatus(merchantOrder != null && merchantOrder.getOrderStatus() != null ? merchantOrder.getOrderStatus().name() : null)
+                .merchantFulfillmentStatus(merchantOrder != null && merchantOrder.getFulfillmentStatus() != null ? merchantOrder.getFulfillmentStatus().name() : null)
+                .merchantTimestamp(merchantOrder != null && merchantOrder.getMerchantUpdatedAt() != null ? merchantOrder.getMerchantUpdatedAt().toString() : null)
+                .webhookStatus(webhook != null && webhook.getDeliveryStatus() != null ? webhook.getDeliveryStatus().name() : null)
+                .webhookHttpCode(webhook != null ? webhook.getHttpStatusCode() : null)
+                .webhookAttemptCount(webhook != null ? webhook.getAttemptCount() : null)
+                .webhookTimestamp(webhook != null && webhook.getLastAttemptAt() != null ? webhook.getLastAttemptAt().toString() : (webhook != null && webhook.getFirstAttemptAt() != null ? webhook.getFirstAttemptAt().toString() : null))
+                .settlementStatus(settlement != null && settlement.getSettlementStatus() != null ? settlement.getSettlementStatus().name() : null)
+                .refundStatus(refund != null && refund.getRefundStatus() != null ? refund.getRefundStatus().name() : null)
+                // 3. JAVA INVESTIGATION (Deterministic Ground Truth)
+                .detectedContradictions(contradictions)
+                .deterministicFindings(summary)
+                .relevantDomainSignals(contradictions)
+                .investigationTimelineSummary(timelineSummary)
+                // 4. RANDOM FOREST ML RESULT
+                .mlModelName("Random Forest Classifier (v1.0.0)")
+                .mlPredictedClass(predictedRootCause)
+                .mlConfidence(confidence)
+                .topMlSignals(mlAssessmentOpt.map(MlAssessmentDto::getTopContributingSignals).orElse(Collections.emptyList()))
+                // 5. JAVA SAFETY DECISION (Authoritative & Final)
+                .javaSafetyDecision(isRetryProhibited ? "PROHIBIT_RETRY_ACTIVE_FUNDS" : "RETRY_PERMITTED")
+                .isRetryProhibited(isRetryProhibited)
+                .retryProhibitionReason(retryReason)
+                .moneyAtRisk(moneyAtRisk)
+                .isAutomaticActionAllowed(finalCaseStatus == CaseStatus.AI_ANALYZED && (recommendedAction == SuggestedAction.AUTO_REFUND_CUSTOMER || recommendedAction == SuggestedAction.RESEND_WEBHOOK))
+                .recommendedResolution(recommendedAction != null ? recommendedAction.name() : "MANUAL_BANK_ESCALATION")
+                .build();
+
+        Optional<GeminiInvestigationResponseDto> geminiExplanationOpt = geminiInvestigationService.explainInvestigation(geminiPayload);
+
+        if (geminiExplanationOpt.isPresent()) {
+            auditService.logEvent(
+                    "INCIDENT_CASES",
+                    incident.getIncidentId(),
+                    "GEMINI_EXPLANATION_ATTACHED",
+                    ActorType.SYSTEM,
+                    "GEMINI_EXPLANATION_ASSISTANT",
+                    String.format("{\"caseStatus\":\"%s\",\"investigatedBy\":\"JAVA_FORENSIC_ENGINE\"}", finalCaseStatus),
+                    String.format("{\"role\":\"ADVISORY_EXPLANATION_ONLY\",\"financialAuthority\":\"JAVA_DETERMINISTIC_RULES\",\"approvedAction\":\"%s\",\"modelUsed\":\"%s\"}",
+                            recommendedAction, geminiExplanationOpt.get().getModelUsed()),
+                    "127.0.0.1"
+            );
+
+            // Persist explanation in MlAssessment if entity exists
+            mlAssessmentRepository.findByIncidentId(incident.getIncidentId()).ifPresent(assessment -> {
+                assessment.setGeminiExplanation(geminiExplanationOpt.get().getSummary());
+                mlAssessmentRepository.save(assessment);
+            });
+        }
+
         return buildInvestigationResult(incident, payment, bank, gateway, merchantOrder, webhook, settlement, refund,
                 mlAssessmentOpt, contradictions, isRetryProhibited, retryReason, moneyAtRisk,
-                predictedRootCause, confidence, recommendedAction, finalCaseStatus, summary);
+                predictedRootCause, confidence, recommendedAction, finalCaseStatus, summary, geminiExplanationOpt);
     }
 
     private InvestigationResultDto buildInvestigationResult(
@@ -268,6 +349,19 @@ public class InvestigationService {
             boolean isRetryProhibited, String retryReason, BigDecimal moneyAtRisk,
             String predictedRootCause, BigDecimal confidence, SuggestedAction recommendedAction,
             CaseStatus finalCaseStatus, String summary) {
+        return buildInvestigationResult(incident, payment, bank, gateway, merchantOrder, webhook,
+                settlement, refund, mlAssessmentOpt, contradictions, isRetryProhibited, retryReason,
+                moneyAtRisk, predictedRootCause, confidence, recommendedAction, finalCaseStatus, summary, Optional.empty());
+    }
+
+    private InvestigationResultDto buildInvestigationResult(
+            IncidentCase incident, Payment payment, BankRecord bank, GatewayRecord gateway,
+            MerchantOrderRecord merchantOrder, WebhookRecord webhook, SettlementRecord settlement,
+            RefundRecord refund, Optional<MlAssessmentDto> mlAssessmentOpt, List<String> contradictions,
+            boolean isRetryProhibited, String retryReason, BigDecimal moneyAtRisk,
+            String predictedRootCause, BigDecimal confidence, SuggestedAction recommendedAction,
+            CaseStatus finalCaseStatus, String summary,
+            Optional<GeminiInvestigationResponseDto> geminiExplanationOpt) {
 
         List<InvestigationEvidence> evidenceList = evidenceRepository.findByIncidentId(incident.getIncidentId());
         List<InvestigationEvidenceDto> evidenceDtos = evidenceList.stream()
@@ -289,7 +383,7 @@ public class InvestigationService {
         AiInvestigationReportDto aiReport = aiInvestigationService.generateInvestigationReport(
                 incident, payment, bank, gateway, merchantOrder, webhook, settlement, refund,
                 evidenceDtos, timelineEvents, mlAssessmentOpt, contradictions, isRetryProhibited,
-                retryReason, moneyAtRisk
+                retryReason, moneyAtRisk, geminiExplanationOpt
         );
 
         return InvestigationResultDto.builder()
@@ -311,7 +405,18 @@ public class InvestigationService {
                 .contradictionsDetected(contradictions)
                 .evidenceList(evidenceDtos)
                 .evidenceCount(evidenceDtos.size())
+                .bankStatus(bank != null && bank.getBankStatus() != null ? bank.getBankStatus().name() : null)
+                .bankUtr(bank != null ? bank.getUtrNumber() : null)
+                .gatewayStatus(gateway != null && gateway.getGatewayStatus() != null ? gateway.getGatewayStatus().name() : null)
+                .gatewayAuthStatus(gateway != null && gateway.getAuthStatus() != null ? gateway.getAuthStatus().name() : null)
+                .gatewayCaptureStatus(gateway != null && gateway.getCaptureStatus() != null ? gateway.getCaptureStatus().name() : null)
+                .merchantOrderStatus(merchantOrder != null && merchantOrder.getOrderStatus() != null ? merchantOrder.getOrderStatus().name() : null)
+                .merchantFulfillmentStatus(merchantOrder != null && merchantOrder.getFulfillmentStatus() != null ? merchantOrder.getFulfillmentStatus().name() : null)
+                .webhookDeliveryStatus(webhook != null && webhook.getDeliveryStatus() != null ? webhook.getDeliveryStatus().name() : null)
+                .webhookHttpStatusCode(webhook != null ? webhook.getHttpStatusCode() : null)
+                .settlementStatus(settlement != null && settlement.getSettlementStatus() != null ? settlement.getSettlementStatus().name() : null)
                 .aiReport(aiReport)
+                .geminiExplanation(geminiExplanationOpt.orElse(null))
                 .summary(summary)
                 .investigatedAt(LocalDateTime.now())
                 .build();
@@ -327,7 +432,6 @@ public class InvestigationService {
                 .predictedRootCause(a.getPredictedRootCause())
                 .anomalyScore(a.getAnomalyScore())
                 .confidenceScore(a.getConfidenceScore())
-                .suggestedAction(a.getSuggestedAction())
                 .modelExplanation(a.getModelExplanation())
                 .assessedAt(a.getAssessedAt())
                 .build();
@@ -371,10 +475,90 @@ public class InvestigationService {
         String retryReason = isBankDebited ? "Active bank debit confirmed." : null;
         BigDecimal moneyAtRisk = isBankDebited ? payment.getAmount() : BigDecimal.ZERO;
 
+        Optional<GeminiInvestigationResponseDto> geminiExplanationOpt = Optional.empty();
+        if (assessment.isPresent() && assessment.get().getGeminiExplanation() != null && !assessment.get().getGeminiExplanation().isBlank()) {
+            geminiExplanationOpt = Optional.of(GeminiInvestigationResponseDto.builder()
+                    .summary(assessment.get().getGeminiExplanation())
+                    .whatHappened(assessment.get().getGeminiExplanation())
+                    .mlReasoning(assessment.get().getModelExplanation())
+                    .build());
+        }
+
         return aiInvestigationService.generateInvestigationReport(
                 incident, payment, bank, gateway, merchantOrder, webhook, settlement, refund,
                 evidenceDtos, timelineEvents, assessment.map(this::mapAssessmentToDto),
-                Collections.emptyList(), isRetryProhibited, retryReason, moneyAtRisk
+                Collections.emptyList(), isRetryProhibited, retryReason, moneyAtRisk,
+                geminiExplanationOpt
         );
+    }
+
+    /**
+     * Authoritative Java Safety & Resolution Decision Engine.
+     *
+     * ARCHITECTURAL RULE:
+     * JAVA INVESTIGATES. ML CLASSIFIES. JAVA DECIDES. GEMINI EXPLAINS.
+     *
+     * The Random Forest ML model ONLY outputs incident classification and confidence.
+     * ML does NOT make financial or operational recommendations.
+     * ALL remediation actions, retry blocks, and refund decisions are computed
+     * deterministically by Java safety rules and telemetry evidence.
+     */
+    public SuggestedAction determineJavaSafetyAction(
+            String predictedRootCause,
+            BigDecimal confidence,
+            boolean isBankDebited,
+            boolean isGatewayCaptured,
+            boolean isGatewayFailed,
+            boolean isMerchantPaid,
+            boolean isMerchantCancelled,
+            boolean isWebhookFailed,
+            SettlementRecord settlement,
+            RefundRecord refund) {
+
+        // Rule 1: Financial Invariant - Active customer bank debit with cancelled order or failed gateway -> AUTO_REFUND_CUSTOMER
+        if (isBankDebited && (isGatewayFailed || isMerchantCancelled)) {
+            return SuggestedAction.AUTO_REFUND_CUSTOMER;
+        }
+
+        // Rule 2: Low ML Confidence (< 70%) -> Cannot automate risky actions; escalate to human review
+        if (confidence != null && confidence.compareTo(ML_CONFIDENCE_THRESHOLD) < 0) {
+            return SuggestedAction.MANUAL_BANK_ESCALATION;
+        }
+
+        // Rule 3: Missing Webhook (Gateway captured, webhook dropped/failed, merchant unpaid) -> RESEND_WEBHOOK
+        if (isGatewayCaptured && isWebhookFailed && !isMerchantPaid) {
+            return SuggestedAction.RESEND_WEBHOOK;
+        }
+        if ("MISSING_WEBHOOK".equalsIgnoreCase(predictedRootCause) && isGatewayCaptured && !isMerchantPaid) {
+            return SuggestedAction.RESEND_WEBHOOK;
+        }
+
+        // Rule 4: Duplicate Payment -> AUTO_REFUND_CUSTOMER
+        if ("DUPLICATE_PAYMENT".equalsIgnoreCase(predictedRootCause)) {
+            return SuggestedAction.AUTO_REFUND_CUSTOMER;
+        }
+
+        // Rule 5: Order Payment Conflict (cart expired/cancelled, funds debited/captured) -> AUTO_REFUND_CUSTOMER
+        if ("ORDER_PAYMENT_CONFLICT".equalsIgnoreCase(predictedRootCause) && (isBankDebited || isGatewayCaptured)) {
+            return SuggestedAction.AUTO_REFUND_CUSTOMER;
+        }
+
+        // Rule 6: Settlement discrepancy -> FORCE_SETTLE_MERCHANT
+        if ((settlement != null && settlement.getSettlementStatus() == SettlementStatus.DISCREPANCY)
+                || "SETTLEMENT_MISMATCH".equalsIgnoreCase(predictedRootCause)) {
+            return SuggestedAction.FORCE_SETTLE_MERCHANT;
+        }
+
+        // Rule 7: Synchronized normal or delayed payment where merchant received confirmation -> NO_ACTION_REQUIRED
+        if (("NORMAL".equalsIgnoreCase(predictedRootCause) || "DELAYED_CONFIRMATION".equalsIgnoreCase(predictedRootCause)) && isMerchantPaid) {
+            return SuggestedAction.NO_ACTION_REQUIRED;
+        }
+
+        // Rule 8: If bank debited in any unhandled failure -> protect customer funds
+        if (isBankDebited && !isMerchantPaid) {
+            return SuggestedAction.AUTO_REFUND_CUSTOMER;
+        }
+
+        return SuggestedAction.MANUAL_BANK_ESCALATION;
     }
 }

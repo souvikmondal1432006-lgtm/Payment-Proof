@@ -125,8 +125,15 @@ export default function PaymentTruthSection({
           <Info size={15} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '2px' }}>
-            What Happened To The Money?
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
+            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+              What Happened To The Money?
+            </span>
+            {(ai.gemini_explanation || ai.geminiExplanation) && (
+              <span className="badge" style={{ fontSize: '0.62rem', background: 'rgba(6, 182, 212, 0.12)', color: '#22d3ee', border: '1px solid rgba(6, 182, 212, 0.35)', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 6px' }}>
+                <Sparkles size={10} /> Gemini Synthesized
+              </span>
+            )}
           </div>
           <div style={{ fontSize: '0.92rem', color: '#ffffff', lineHeight: 1.5, fontWeight: 500 }}>
             {ai.whatHappened || 'Your customer was debited ₹8,500 via UPI from their bank account, but an upstream network timeout prevented the merchant from confirming the payment before the checkout session expired.'}

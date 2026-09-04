@@ -2,11 +2,14 @@ package com.paymentproof.service;
 
 import com.paymentproof.dto.ResolutionDto;
 import com.paymentproof.dto.ResolutionRequestDto;
+import com.paymentproof.entity.BankRecord;
 import com.paymentproof.entity.IncidentCase;
 import com.paymentproof.entity.Payment;
 import com.paymentproof.entity.Resolution;
 import com.paymentproof.entity.enums.*;
+import com.paymentproof.exception.InvalidOperationException;
 import com.paymentproof.exception.ResourceNotFoundException;
+import com.paymentproof.repository.BankRecordRepository;
 import com.paymentproof.repository.IncidentCaseRepository;
 import com.paymentproof.repository.PaymentRepository;
 import com.paymentproof.repository.ResolutionRepository;
@@ -27,6 +30,7 @@ public class ResolutionService {
     private final ResolutionRepository resolutionRepository;
     private final IncidentCaseRepository incidentCaseRepository;
     private final PaymentRepository paymentRepository;
+    private final BankRecordRepository bankRecordRepository;
     private final AuditService auditService;
 
     @Transactional(readOnly = true)
@@ -40,8 +44,35 @@ public class ResolutionService {
     public ResolutionDto resolveIncident(String incidentId, ResolutionRequestDto request) {
         log.info("Applying resolution to incident: {} by {}", incidentId, request.getResolvedBy());
 
+        if (request.getActionTaken() == null) {
+            throw new InvalidOperationException("Resolution actionTaken is required.");
+        }
+
+        // Safety Invariant 1: External advisory models (ML / Gemini) cannot authorize or execute resolutions
+        if (request.getResolvedBy() != null && (
+                request.getResolvedBy().toUpperCase().contains("GEMINI") ||
+                request.getResolvedBy().toUpperCase().contains("ML_SERVICE") ||
+                request.getResolvedBy().toUpperCase().contains("PYTHON_ML") ||
+                request.getResolvedBy().toUpperCase().contains("RANDOM_FOREST"))) {
+            throw new InvalidOperationException("External advisory models (ML / Gemini) cannot independently authorize or execute resolutions. Only Java workflows or human operators are permitted.");
+        }
+
         IncidentCase incident = incidentCaseRepository.findById(incidentId)
                 .orElseThrow(() -> new ResourceNotFoundException("IncidentCase", "incidentId", incidentId));
+
+        // Safety Invariant 2: If incident is under NEEDS_REVIEW, automated resolution is prohibited; operator manual override is required
+        if (incident.getCaseStatus() == CaseStatus.NEEDS_REVIEW && request.getResolutionType() != ResolutionType.OPERATOR_MANUAL_OVERRIDE) {
+            throw new InvalidOperationException("Incident is under NEEDS_REVIEW status due to low ML confidence or contradictory evidence. Automated resolution is prohibited; manual operator review is required.");
+        }
+
+        // Safety Invariant 3: Money Lock / Active Debit Invariant
+        // If bank debited the customer, resolving as NO_DISCREPANCY_FOUND without refund or justification is strictly prohibited
+        BankRecord bank = bankRecordRepository.findByPaymentId(incident.getPaymentId()).orElse(null);
+        boolean isBankDebited = (bank != null && (bank.getBankStatus() == BankStatus.SUCCESS || bank.getBankStatus() == BankStatus.DEBITED));
+        if (isBankDebited && request.getActionTaken() == ResolutionAction.NO_DISCREPANCY_FOUND) {
+            throw new InvalidOperationException("STRICT SAFETY INVARIANT VIOLATION: Customer account was confirmed debited (UTR: " + 
+                    (bank != null ? bank.getUtrNumber() : "UNKNOWN") + "). Cannot close incident with NO_DISCREPANCY_FOUND without customer remediation.");
+        }
 
         Payment payment = paymentRepository.findById(incident.getPaymentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", "paymentId", incident.getPaymentId()));

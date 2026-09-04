@@ -2,12 +2,13 @@ package com.paymentproof.service;
 
 import com.paymentproof.dto.ResolutionDto;
 import com.paymentproof.dto.ResolutionRequestDto;
-import com.paymentproof.entity.AuditEvent;
+import com.paymentproof.entity.BankRecord;
 import com.paymentproof.entity.IncidentCase;
 import com.paymentproof.entity.Payment;
 import com.paymentproof.entity.Resolution;
 import com.paymentproof.entity.enums.*;
-import com.paymentproof.repository.AuditEventRepository;
+import com.paymentproof.exception.InvalidOperationException;
+import com.paymentproof.repository.BankRecordRepository;
 import com.paymentproof.repository.IncidentCaseRepository;
 import com.paymentproof.repository.PaymentRepository;
 import com.paymentproof.repository.ResolutionRepository;
@@ -36,6 +37,8 @@ class ResolutionServiceTest {
     private IncidentCaseRepository incidentCaseRepository;
     @Mock
     private PaymentRepository paymentRepository;
+    @Mock
+    private BankRecordRepository bankRecordRepository;
     @Mock
     private AuditService auditService;
 
@@ -76,6 +79,7 @@ class ResolutionServiceTest {
 
         when(incidentCaseRepository.findById("inc_res_01")).thenReturn(Optional.of(mockIncident));
         when(paymentRepository.findById("pay_res_01")).thenReturn(Optional.of(mockPayment));
+        when(bankRecordRepository.findByPaymentId("pay_res_01")).thenReturn(Optional.empty());
         when(resolutionRepository.findByIncidentId("inc_res_01")).thenReturn(Optional.empty());
         when(resolutionRepository.save(any(Resolution.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -91,5 +95,70 @@ class ResolutionServiceTest {
         verify(incidentCaseRepository, times(1)).save(mockIncident);
         verify(paymentRepository, times(1)).save(mockPayment);
         verify(auditService, times(1)).logEvent(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Safety Invariant 1: External AI models (Gemini / ML) cannot authorize or execute resolutions")
+    void testResolveIncident_UnauthorizedActor_Rejected() {
+        ResolutionRequestDto geminiRequest = ResolutionRequestDto.builder()
+                .actionTaken(ResolutionAction.CUSTOMER_REFUNDED)
+                .resolutionType(ResolutionType.AUTOMATED_RULE_ENGINE)
+                .resolvedBy("GEMINI_EXPLANATION_ASSISTANT")
+                .build();
+
+        InvalidOperationException ex1 = assertThrows(InvalidOperationException.class,
+                () -> resolutionService.resolveIncident("inc_res_01", geminiRequest));
+        assertTrue(ex1.getMessage().contains("External advisory models"));
+
+        ResolutionRequestDto mlRequest = ResolutionRequestDto.builder()
+                .actionTaken(ResolutionAction.CUSTOMER_REFUNDED)
+                .resolutionType(ResolutionType.AUTOMATED_RULE_ENGINE)
+                .resolvedBy("PYTHON_ML_SERVICE")
+                .build();
+
+        InvalidOperationException ex2 = assertThrows(InvalidOperationException.class,
+                () -> resolutionService.resolveIncident("inc_res_01", mlRequest));
+        assertTrue(ex2.getMessage().contains("External advisory models"));
+    }
+
+    @Test
+    @DisplayName("Safety Invariant 2: Incidents under NEEDS_REVIEW prohibit automated resolution; require OPERATOR_MANUAL_OVERRIDE")
+    void testResolveIncident_NeedsReview_RequiresManualOverride() {
+        mockIncident.setCaseStatus(CaseStatus.NEEDS_REVIEW);
+        when(incidentCaseRepository.findById("inc_res_01")).thenReturn(Optional.of(mockIncident));
+
+        ResolutionRequestDto autoRequest = ResolutionRequestDto.builder()
+                .actionTaken(ResolutionAction.CUSTOMER_REFUNDED)
+                .resolutionType(ResolutionType.AUTOMATED_RULE_ENGINE)
+                .resolvedBy("SYSTEM_AUTO_RECON")
+                .build();
+
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+                () -> resolutionService.resolveIncident("inc_res_01", autoRequest));
+        assertTrue(ex.getMessage().contains("NEEDS_REVIEW"));
+    }
+
+    @Test
+    @DisplayName("Safety Invariant 3: Active bank debit prohibits closing incident as NO_DISCREPANCY_FOUND without remediation")
+    void testResolveIncident_ActiveDebit_ProhibitsNoDiscrepancy() {
+        when(incidentCaseRepository.findById("inc_res_01")).thenReturn(Optional.of(mockIncident));
+
+        BankRecord bank = BankRecord.builder()
+                .bankRecordId("bnk_01")
+                .paymentId("pay_res_01")
+                .bankStatus(BankStatus.SUCCESS)
+                .utrNumber("414960264709")
+                .build();
+        when(bankRecordRepository.findByPaymentId("pay_res_01")).thenReturn(Optional.of(bank));
+
+        ResolutionRequestDto unsafeRequest = ResolutionRequestDto.builder()
+                .actionTaken(ResolutionAction.NO_DISCREPANCY_FOUND)
+                .resolutionType(ResolutionType.OPERATOR_MANUAL_OVERRIDE)
+                .resolvedBy("operator_priya_m")
+                .build();
+
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+                () -> resolutionService.resolveIncident("inc_res_01", unsafeRequest));
+        assertTrue(ex.getMessage().contains("STRICT SAFETY INVARIANT VIOLATION"));
     }
 }

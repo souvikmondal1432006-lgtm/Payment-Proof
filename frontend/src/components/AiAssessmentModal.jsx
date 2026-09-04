@@ -15,6 +15,7 @@ import {
   Lock
 } from 'lucide-react';
 import { api } from '../services/api';
+import ErrorBanner from './ErrorBanner';
 
 export default function AiAssessmentModal({
   isOpen,
@@ -28,6 +29,7 @@ export default function AiAssessmentModal({
   const [step, setStep] = useState(1);
   const [analyzing, setAnalyzing] = useState(true);
   const [report, setReport] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     runAiInvestigation();
@@ -35,6 +37,8 @@ export default function AiAssessmentModal({
 
   const runAiInvestigation = async () => {
     setAnalyzing(true);
+    setError(null);
+    setReport(null);
     setStep(1);
 
     // Step-by-step visual progression
@@ -47,16 +51,12 @@ export default function AiAssessmentModal({
         const reportData = res.aiReport || res;
         setReport(reportData);
       } catch (err) {
-        console.warn('Using local forensic model report:', err);
-        setReport(incident.aiReport || {
-          whatHappened: "Your customer was charged at the bank via UPI, but the payment gateway experienced an upstream timeout. Consequently, the merchant cancelled the cart reservation.",
-          whyWeThinkThis: "Bank reported SUCCESS (debited). Gateway reported PENDING (65s timeout). Merchant OMS recorded CANCELLED.",
-          whatIsUncertain: "Unable to confirm if merchant can restore the inventory without re-ordering.",
-          recommendedAction: "AUTO_REFUND_CUSTOMER",
-          moneyAtRisk: incident.amount || 8500.00,
-          confidence: 0.9924,
-          isRetryProhibited: true,
-          retryProhibitionReason: "STRICT SAFETY INVARIANT: Active bank debit confirmed. Blind retry is prohibited to prevent duplicate debit."
+        console.error('Real investigation failed:', err);
+        setError({
+          title: 'BACKEND INVESTIGATION OFFLINE',
+          humanMessage: err.humanMessage || 'The authoritative Java investigation backend is unreachable. No automated payment action was taken.',
+          technicalDetails: err.technicalDetails || err.message,
+          endpoint: err.endpoint
         });
       } finally {
         setAnalyzing(false);
@@ -276,6 +276,16 @@ export default function AiAssessmentModal({
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {error && !analyzing && (
+            <div style={{ marginTop: '16px' }}>
+              <ErrorBanner
+                error={error}
+                onRetry={runAiInvestigation}
+                title="Investigation Service Unavailable"
+              />
             </div>
           )}
 

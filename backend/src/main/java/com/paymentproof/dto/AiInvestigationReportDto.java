@@ -74,6 +74,9 @@ public class AiInvestigationReportDto {
     @JsonProperty("timeline_events_count")
     private int timelineEventsCount;
 
+    @JsonProperty("gemini_explanation")
+    private GeminiInvestigationResponseDto geminiExplanation;
+
     @JsonProperty("generated_at")
     private LocalDateTime generatedAt;
 }

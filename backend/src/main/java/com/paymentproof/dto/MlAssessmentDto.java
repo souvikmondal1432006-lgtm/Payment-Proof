@@ -1,7 +1,6 @@
 package com.paymentproof.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.paymentproof.entity.enums.SuggestedAction;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -38,20 +37,11 @@ public class MlAssessmentDto {
     @JsonProperty("confidence_score")
     private BigDecimal confidenceScore;
 
-    @JsonProperty("suggested_action")
-    private SuggestedAction suggestedAction;
-
-    @JsonProperty("recommended_action")
-    private String recommendedAction;
-
     @JsonProperty("top_contributing_signals")
     private List<ContributingSignalDto> topContributingSignals;
 
     @JsonProperty("class_probabilities")
     private Map<String, BigDecimal> classProbabilities;
-
-    @JsonProperty("is_retry_prohibited_recommendation")
-    private Boolean isRetryProhibitedRecommendation;
 
     private String featureSnapshot;
 

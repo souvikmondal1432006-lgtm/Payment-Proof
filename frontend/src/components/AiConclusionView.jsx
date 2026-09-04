@@ -164,6 +164,76 @@ export default function AiConclusionView({
             ))}
           </div>
         </div>
+
+        {/* Section 5: GEMINI FORENSIC ASSISTANT (Strictly Advisory Synthesis) */}
+        {(ai.gemini_explanation || ai.geminiExplanation || incident.geminiExplanation) && (() => {
+          const gemini = ai.gemini_explanation || ai.geminiExplanation || incident.geminiExplanation;
+          return (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.07) 0%, rgba(59, 130, 246, 0.04) 100%)',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              borderRadius: '10px',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} style={{ color: '#06b6d4' }} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#06b6d4', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Gemini Explanation Assistant (Advisory Synthesis)
+                  </span>
+                </div>
+                <span className="badge" style={{ fontSize: '0.68rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
+                  Non-Authoritative • Explanatory Only
+                </span>
+              </div>
+
+              {gemini.summary && (
+                <div style={{ fontSize: '0.92rem', color: '#f1f5f9', fontWeight: 500, lineHeight: 1.5 }}>
+                  {gemini.summary}
+                </div>
+              )}
+
+              {gemini.evidence && gemini.evidence.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: '4px' }}>
+                    Key Corroborating Evidence:
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: '18px', color: '#cbd5e1', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                    {gemini.evidence.map((ev, i) => (
+                      <li key={i}>{ev}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px', marginTop: '4px' }}>
+                {(gemini.customer_impact || gemini.customerImpact) && (
+                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase', marginBottom: '3px' }}>
+                      Customer Impact
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                      {gemini.customer_impact || gemini.customerImpact}
+                    </div>
+                  </div>
+                )}
+                {(gemini.confidence_explanation || gemini.confidenceExplanation) && (
+                  <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#a78bfa', fontWeight: 700, textTransform: 'uppercase', marginBottom: '3px' }}>
+                      Confidence Reasoning
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.4 }}>
+                      {gemini.confidence_explanation || gemini.confidenceExplanation}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

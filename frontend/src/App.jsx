@@ -16,7 +16,7 @@ import ScenarioSimulator from './components/ScenarioSimulator';
 import AiAssessmentModal from './components/AiAssessmentModal';
 import CaseQueue from './components/CaseQueue';
 import ErrorBanner from './components/ErrorBanner';
-import { api, FALLBACK_INCIDENTS } from './services/api';
+import { api } from './services/api';
 
 export default function App() {
   // Navigation: 'landing' | 'login' | 'workstation'
@@ -34,9 +34,9 @@ export default function App() {
     avatar: 'PM'
   });
 
-  const [cases, setCases] = useState(FALLBACK_INCIDENTS);
-  const [selectedCaseId, setSelectedCaseId] = useState(FALLBACK_INCIDENTS[0].incidentId);
-  const [selectedCaseDetail, setSelectedCaseDetail] = useState(FALLBACK_INCIDENTS[0]);
+  const [cases, setCases] = useState([]);
+  const [selectedCaseId, setSelectedCaseId] = useState(null);
+  const [selectedCaseDetail, setSelectedCaseDetail] = useState(null);
   const [stats, setStats] = useState(null);
   const [auditEvents, setAuditEvents] = useState([]);
   const [systemHealth, setSystemHealth] = useState(null);
@@ -87,14 +87,16 @@ export default function App() {
         loadCaseDetail(firstId);
       } else {
         if (casesData.status === 'rejected') {
+          setCases([]);
+          setSelectedCaseId(null);
+          setSelectedCaseDetail(null);
           setGlobalError({
             title: 'BACKEND OFFLINE',
-            humanMessage: 'Live payment investigation is temporarily unavailable.',
-            technicalDetails: casesData.reason ? casesData.reason.message : 'Connection refused to backend port 8080'
+            humanMessage: 'Unable to connect to the payment investigation backend server (http://localhost:8080). Check your backend service status.',
+            technicalDetails: casesData.reason ? (casesData.reason.humanMessage || casesData.reason.message) : 'Connection refused to backend port 8080',
+            endpoint: casesData.reason?.endpoint || '/api/incidents'
           });
-          if (cases.length > 0) {
-            setIsLastKnownData(true);
-          }
+          setIsLastKnownData(false);
         }
       }
 
@@ -109,14 +111,16 @@ export default function App() {
       }
     } catch (e) {
       console.error('Failed to load dashboard data:', e);
+      setCases([]);
+      setSelectedCaseId(null);
+      setSelectedCaseDetail(null);
       setGlobalError({
         title: 'BACKEND OFFLINE',
-        humanMessage: 'Live payment investigation is temporarily unavailable.',
-        technicalDetails: e.message
+        humanMessage: 'Unable to connect to the payment investigation backend server (http://localhost:8080). Check your backend service status.',
+        technicalDetails: e.humanMessage || e.message,
+        endpoint: e.endpoint || '/api'
       });
-      if (cases.length > 0) {
-        setIsLastKnownData(true);
-      }
+      setIsLastKnownData(false);
     } finally {
       setLoadingCases(false);
     }

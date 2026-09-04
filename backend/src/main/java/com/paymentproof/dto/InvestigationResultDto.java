@@ -62,6 +62,7 @@ public class InvestigationResultDto {
 
     // AI Investigation Narrative & Structured Report
     private AiInvestigationReportDto aiReport;
+    private GeminiInvestigationResponseDto geminiExplanation;
 
     // Timing & Metadata
     private LocalDateTime investigatedAt;

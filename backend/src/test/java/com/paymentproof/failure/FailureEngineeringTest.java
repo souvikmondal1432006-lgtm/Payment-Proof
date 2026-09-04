@@ -11,6 +11,7 @@ import com.paymentproof.exception.GlobalExceptionHandler;
 import com.paymentproof.repository.*;
 import com.paymentproof.service.AiInvestigationService;
 import com.paymentproof.service.AuditService;
+import com.paymentproof.service.GeminiInvestigationService;
 import com.paymentproof.service.InvestigationService;
 import com.paymentproof.service.TimelineService;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +66,8 @@ class FailureEngineeringTest {
     private MlServiceClient mlServiceClient;
     @Mock
     private TimelineService timelineService;
+    @Mock
+    private GeminiInvestigationService geminiInvestigationService;
 
     @Spy
     private AiInvestigationService aiInvestigationService = new AiInvestigationService();
@@ -131,6 +134,9 @@ class FailureEngineeringTest {
                 .expectedAmount(BigDecimal.valueOf(8500.00))
                 .merchantUpdatedAt(LocalDateTime.now())
                 .build();
+
+        org.mockito.Mockito.lenient().when(geminiInvestigationService.explainInvestigation(any()))
+                .thenReturn(Optional.empty());
     }
 
     @Test
@@ -198,7 +204,6 @@ class FailureEngineeringTest {
         MlAssessmentDto validMl = MlAssessmentDto.builder()
                 .predictedRootCause("BANK_DEBIT_GATEWAY_FAILURE")
                 .confidenceScore(BigDecimal.valueOf(0.95))
-                .suggestedAction(SuggestedAction.AUTO_REFUND_CUSTOMER)
                 .build();
         when(mlServiceClient.classifyTelemetry(any())).thenReturn(Optional.of(validMl));
 
@@ -241,7 +246,99 @@ class FailureEngineeringTest {
         assertNotNull(result);
         assertEquals(CaseStatus.AI_ANALYZED, result.getInvestigationStatus());
         verify(mlServiceClient, never()).classifyTelemetry(any());
-        verify(auditService, times(1)).logEvent(eq("INCIDENT_CASES"), eq("inc_fail_001"), eq("OPERATOR_REVIEWED_CASE"), any(), any(), any(), any(), any());
+        verify(auditService, never()).logEvent(any(), any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Failure Scenario 8: Conflicting Evidence — Bank=SUCCESS, Gateway=SUCCESS (CAPTURED), Merchant=CANCELLED")
+    void testConflictingEvidence_BankSuccess_GatewaySuccess_MerchantCancelled() {
+        mockGatewayRecord.setGatewayStatus(GatewayStatus.SUCCESS);
+        mockGatewayRecord.setCaptureStatus(CaptureStatus.CAPTURED);
+
+        when(incidentCaseRepository.findById("inc_fail_001")).thenReturn(Optional.of(mockIncident));
+        when(paymentRepository.findById("pay_fail_001")).thenReturn(Optional.of(mockPayment));
+        when(bankRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockBankRecord));
+        when(gatewayRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockGatewayRecord));
+        when(merchantOrderRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockMerchantRecord));
+        when(webhookRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(settlementRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(refundRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(evidenceRepository.findByIncidentId("inc_fail_001")).thenReturn(List.of());
+        when(timelineService.getTimelineForPayment("pay_fail_001")).thenReturn(List.of());
+
+        MlAssessmentDto validMl = MlAssessmentDto.builder()
+                .predictedRootCause("ORDER_PAYMENT_CONFLICT")
+                .confidenceScore(BigDecimal.valueOf(0.92))
+                .build();
+        when(mlServiceClient.classifyTelemetry(any())).thenReturn(Optional.of(validMl));
+
+        InvestigationResultDto result = investigationService.investigateIncident("inc_fail_001");
+
+        assertNotNull(result);
+        assertTrue(result.isRetryProhibited(), "Payment is captured and debited; blind retry is prohibited");
+        assertFalse(result.getContradictionsDetected().isEmpty());
+        assertTrue(result.getContradictionsDetected().stream().anyMatch(c -> c.contains("Payment Capture with Cancelled Order")),
+                "Must explicitly identify contradiction between captured payment and cancelled order");
+    }
+
+    @Test
+    @DisplayName("Failure Scenario 9: Low ML Confidence (<0.70) — Case status becomes NEEDS_REVIEW and manual review is enforced")
+    void testLowMlConfidence_EnforcesNeedsReview() {
+        when(incidentCaseRepository.findById("inc_fail_001")).thenReturn(Optional.of(mockIncident));
+        when(paymentRepository.findById("pay_fail_001")).thenReturn(Optional.of(mockPayment));
+        when(bankRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockBankRecord));
+        when(gatewayRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockGatewayRecord));
+        when(merchantOrderRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockMerchantRecord));
+        when(webhookRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(settlementRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(refundRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(evidenceRepository.findByIncidentId("inc_fail_001")).thenReturn(List.of());
+        when(timelineService.getTimelineForPayment("pay_fail_001")).thenReturn(List.of());
+
+        // Low confidence ML output (0.55 < 0.70 threshold)
+        MlAssessmentDto lowConfMl = MlAssessmentDto.builder()
+                .predictedRootCause("BANK_DEBIT_GATEWAY_FAILURE")
+                .confidenceScore(BigDecimal.valueOf(0.55))
+                .build();
+        when(mlServiceClient.classifyTelemetry(any())).thenReturn(Optional.of(lowConfMl));
+
+        InvestigationResultDto result = investigationService.investigateIncident("inc_fail_001");
+
+        assertNotNull(result);
+        assertEquals(CaseStatus.NEEDS_REVIEW, result.getInvestigationStatus(), "Low confidence ML must trigger NEEDS_REVIEW status");
+        assertTrue(result.getSummary().contains("below threshold"), "Summary must indicate low confidence escalation");
+    }
+
+    @Test
+    @DisplayName("Failure Scenario 10: Gemini Failure / Timeout — Investigation completes normally with Java deterministic explanation")
+    void testGeminiFailure_InvestigationCompletesNormally() {
+        when(incidentCaseRepository.findById("inc_fail_001")).thenReturn(Optional.of(mockIncident));
+        when(paymentRepository.findById("pay_fail_001")).thenReturn(Optional.of(mockPayment));
+        when(bankRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockBankRecord));
+        when(gatewayRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockGatewayRecord));
+        when(merchantOrderRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.of(mockMerchantRecord));
+        when(webhookRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(settlementRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(refundRecordRepository.findByPaymentId("pay_fail_001")).thenReturn(Optional.empty());
+        when(evidenceRepository.findByIncidentId("inc_fail_001")).thenReturn(List.of());
+        when(timelineService.getTimelineForPayment("pay_fail_001")).thenReturn(List.of());
+
+        MlAssessmentDto validMl = MlAssessmentDto.builder()
+                .predictedRootCause("BANK_DEBIT_GATEWAY_FAILURE")
+                .confidenceScore(BigDecimal.valueOf(0.95))
+                .build();
+        when(mlServiceClient.classifyTelemetry(any())).thenReturn(Optional.of(validMl));
+
+        // Gemini returns empty (simulating timeout / HTTP 429 / HTTP 500 / missing key)
+        when(geminiInvestigationService.explainInvestigation(any())).thenReturn(Optional.empty());
+
+        InvestigationResultDto result = investigationService.investigateIncident("inc_fail_001");
+
+        assertNotNull(result);
+        assertNotNull(result.getAiReport(), "AI report must be generated deterministically by Java");
+        assertNotNull(result.getAiReport().getWhatHappened(), "Deterministic whatHappened must be present");
+        assertNull(result.getAiReport().getGeminiExplanation(), "Gemini explanation is null when Gemini is unavailable");
+        assertEquals(CaseStatus.AI_ANALYZED, result.getInvestigationStatus());
     }
 
     @Test

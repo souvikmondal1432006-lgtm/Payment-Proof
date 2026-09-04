@@ -96,8 +96,8 @@ class DomainSignalExtractor(BaseEstimator, TransformerMixin):
         # 4. Debited vs Cancelled Cart Divergence
         df["is_debited_order_conflict"] = (is_bank_debited & is_merchant_cancelled).astype(int)
 
-        # 5. Settlement Discrepancy Flag
-        df["is_settlement_discrepancy"] = (df["settlement_status"] == "DISCREPANCY").astype(int)
+        # 5. Settlement Discrepancy Flag (Discrepancy status or significant MDR/amount drift)
+        df["is_settlement_discrepancy"] = ((df["settlement_status"] == "DISCREPANCY") | (df["amount_deviation_score"].abs() > 0.025)).astype(int)
 
         # 6. Refund Stalled Flag
         is_refund_flagged = df["refund_status"].isin(["MANUAL_INTERVENTION_REQUIRED", "PENDING", "FAILED"]).astype(int)
@@ -105,7 +105,7 @@ class DomainSignalExtractor(BaseEstimator, TransformerMixin):
         df["is_refund_stalled_signal"] = (is_refund_flagged & is_bank_rev_not_credited).astype(int)
 
         # 7. Duplicate Retry Signal
-        df["is_duplicate_retry_signal"] = ((df["retry_count"] > 0) & (df["is_duplicate_candidate"] == 1)).astype(int)
+        df["is_duplicate_retry_signal"] = ((df["retry_count"] > 0) & ((df["is_duplicate_candidate"] == 1) | (df["transaction_age_seconds"] < 300))).astype(int)
 
         return df
 

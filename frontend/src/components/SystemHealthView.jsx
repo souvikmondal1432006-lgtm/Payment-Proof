@@ -3,6 +3,7 @@ import {
   Server,
   Database,
   Cpu,
+  Sparkles,
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
@@ -38,7 +39,8 @@ export default function SystemHealthView() {
         services: {
           backend: { name: 'JAVA BACKEND', status: 'OFFLINE', label: 'Unavailable' },
           database: { name: 'MYSQL DATABASE', status: 'OFFLINE', label: 'Unavailable' },
-          mlService: { name: 'ML SERVICE', status: 'OFFLINE', label: 'Unavailable' }
+          mlService: { name: 'ML SERVICE', status: 'OFFLINE', label: 'Unavailable' },
+          gemini: { name: 'GEMINI ASSISTANT', status: 'NOT_CONFIGURED', label: 'Advisory (Not Configured)' }
         }
       });
     } finally {
@@ -73,6 +75,15 @@ export default function SystemHealthView() {
       icon: Cpu,
       status: health?.services?.mlService?.status || 'HEALTHY',
       label: health?.services?.mlService?.label || 'Ready'
+    },
+    {
+      id: 'gemini',
+      title: 'Gemini Explanation Assistant',
+      systemName: 'GEMINI ASSISTANT',
+      description: 'Advisory explanation assistant generating natural-language case summaries. Optional and advisory only.',
+      icon: Sparkles,
+      status: health?.services?.gemini?.status || 'NOT_CONFIGURED',
+      label: health?.services?.gemini?.label || 'Advisory (Not Configured)'
     }
   ];
 
@@ -185,6 +196,8 @@ export default function SystemHealthView() {
         return '#10b981';
       case 'DEGRADED':
         return '#f59e0b';
+      case 'NOT_CONFIGURED':
+        return '#94a3b8';
       case 'OFFLINE':
       default:
         return '#ef4444';
@@ -197,6 +210,8 @@ export default function SystemHealthView() {
         return 'rgba(16, 185, 129, 0.1)';
       case 'DEGRADED':
         return 'rgba(245, 158, 11, 0.1)';
+      case 'NOT_CONFIGURED':
+        return 'rgba(148, 163, 184, 0.1)';
       case 'OFFLINE':
       default:
         return 'rgba(239, 68, 68, 0.1)';
@@ -209,6 +224,8 @@ export default function SystemHealthView() {
         return 'rgba(16, 185, 129, 0.3)';
       case 'DEGRADED':
         return 'rgba(245, 158, 11, 0.3)';
+      case 'NOT_CONFIGURED':
+        return 'rgba(148, 163, 184, 0.3)';
       case 'OFFLINE':
       default:
         return 'rgba(239, 68, 68, 0.3)';

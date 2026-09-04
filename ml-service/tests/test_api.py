@@ -48,8 +48,8 @@ def test_classify_endpoint_success():
     assert "confidence" in data
     assert "anomaly_score" in data
     assert "top_contributing_signals" in data
-    assert "is_retry_prohibited_recommendation" in data
-    assert "recommended_action" in data
+    assert "recommended_action" not in data
+    assert "is_retry_prohibited_recommendation" not in data
 
 def test_classify_invalid_amount():
     payload = {

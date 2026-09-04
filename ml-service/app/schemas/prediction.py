@@ -21,9 +21,6 @@ class IncidentPredictionResponse(BaseModel):
     model_version: str = Field(..., description="Model artifact identifier and version")
     top_contributing_signals: List[ContributingSignal] = Field(default_factory=list, description="Top influential signals")
     class_probabilities: Dict[str, float] = Field(default_factory=dict, description="Probability distribution across all 9 classes")
-    is_retry_prohibited_recommendation: bool = Field(..., description="Safety invariant recommendation on whether retry should be blocked")
-    recommended_action: str = Field(..., description="Suggested remediation action for Java workflow engine")
-    suggested_action: Optional[str] = Field(None, description="Alias for Java backend DTO")
     model_explanation: Optional[str] = Field(None, description="Explanation summary string")
 
     def model_post_init(self, __context):
@@ -31,7 +28,5 @@ class IncidentPredictionResponse(BaseModel):
             self.predicted_root_cause = self.classification
         if self.confidence_score is None:
             self.confidence_score = self.confidence
-        if self.suggested_action is None:
-            self.suggested_action = self.recommended_action
         if self.model_explanation is None and self.top_contributing_signals:
             self.model_explanation = "; ".join(s.interpretation for s in self.top_contributing_signals[:2])

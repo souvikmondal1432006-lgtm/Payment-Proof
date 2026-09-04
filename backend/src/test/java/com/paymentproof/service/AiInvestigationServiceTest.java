@@ -85,7 +85,6 @@ class AiInvestigationServiceTest {
         MlAssessmentDto ml = MlAssessmentDto.builder()
                 .predictedRootCause("BANK_DEBIT_GATEWAY_FAILURE")
                 .confidenceScore(BigDecimal.valueOf(0.9850))
-                .suggestedAction(SuggestedAction.AUTO_REFUND_CUSTOMER)
                 .build();
 
         AiInvestigationReportDto report = aiInvestigationService.generateInvestigationReport(
@@ -159,7 +158,6 @@ class AiInvestigationServiceTest {
         MlAssessmentDto ml = MlAssessmentDto.builder()
                 .predictedRootCause("MISSING_WEBHOOK")
                 .confidenceScore(BigDecimal.valueOf(0.9620))
-                .suggestedAction(SuggestedAction.RESEND_WEBHOOK)
                 .build();
 
         AiInvestigationReportDto report = aiInvestigationService.generateInvestigationReport(

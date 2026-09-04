@@ -38,8 +38,37 @@ public class AiInvestigationService {
             boolean isRetryProhibited,
             String retryReason,
             BigDecimal moneyAtRisk) {
+        return generateInvestigationReport(
+                incident, payment, bank, gateway, merchantOrder, webhook, settlement, refund,
+                evidenceDtos, timelineEvents, mlAssessmentOpt, contradictions, isRetryProhibited,
+                retryReason, moneyAtRisk, Optional.empty()
+        );
+    }
 
-        log.info("Generating authoritative AI Investigation Report for incident: {}", incident.getIncidentId());
+    /**
+     * Overloaded method incorporating optional Gemini Explanation Assistant synthesis.
+     * Note: Gemini is strictly explanatory; Java remains the sole authoritative decision-maker.
+     */
+    public AiInvestigationReportDto generateInvestigationReport(
+            IncidentCase incident,
+            Payment payment,
+            BankRecord bank,
+            GatewayRecord gateway,
+            MerchantOrderRecord merchantOrder,
+            WebhookRecord webhook,
+            SettlementRecord settlement,
+            RefundRecord refund,
+            List<InvestigationEvidenceDto> evidenceDtos,
+            List<TimelineEventDto> timelineEvents,
+            Optional<MlAssessmentDto> mlAssessmentOpt,
+            List<String> contradictions,
+            boolean isRetryProhibited,
+            String retryReason,
+            BigDecimal moneyAtRisk,
+            Optional<GeminiInvestigationResponseDto> geminiExplanationOpt) {
+
+        log.info("Generating authoritative AI Investigation Report for incident: {} (Gemini present: {})",
+                incident.getIncidentId(), geminiExplanationOpt.isPresent());
 
         boolean isBankDebited = (bank != null && (bank.getBankStatus() == BankStatus.SUCCESS || bank.getBankStatus() == BankStatus.DEBITED));
         boolean isGatewayCaptured = (gateway != null && gateway.getCaptureStatus() == CaptureStatus.CAPTURED);
@@ -53,16 +82,16 @@ public class AiInvestigationService {
         List<ContributingSignalDto> topSignals = mlAssessmentOpt.map(MlAssessmentDto::getTopContributingSignals).orElse(Collections.emptyList());
         Map<String, BigDecimal> classProbs = mlAssessmentOpt.map(MlAssessmentDto::getClassProbabilities).orElse(Collections.emptyMap());
 
-        // 1. WHAT HAPPENED (Chronological plain-English narrative)
+        // 1. WHAT HAPPENED (Deterministic chronological plain-English narrative generated solely by Java)
         String whatHappened = buildWhatHappenedNarrative(payment, bank, gateway, merchantOrder, webhook, settlement, refund, predictedClass);
 
-        // 2. WHY WE THINK THIS (Multi-system synthesis)
+        // 2. WHY WE THINK THIS (Deterministic multi-system synthesis generated solely by Java)
         String whyWeThinkThis = buildWhyWeThinkThis(bank, gateway, merchantOrder, webhook, settlement, refund, contradictions, predictedClass, confidence);
 
-        // 3. WHAT IS UNCERTAIN (Epistemic humility & unresolved questions)
+        // 3. WHAT IS UNCERTAIN (Deterministic epistemic humility & unresolved questions generated solely by Java)
         String whatIsUncertain = buildWhatIsUncertain(bank, gateway, merchantOrder, webhook, settlement, refund, mlAssessmentOpt);
 
-        // 4. RECOMMENDED ACTION (Safest next operational step)
+        // 4. RECOMMENDED ACTION (Safest next operational step - STRICTLY determined by Java rules)
         SuggestedAction recommendedAction = determineSafestAction(isBankDebited, isGatewayCaptured, isGatewayFailed, isMerchantPaid, isMerchantCancelled, isWebhookFailed, settlement, refund, predictedClass);
 
         // 5. AUDITABLE DECISION FACTORS (Concise, structured factors without hidden chain-of-thought)
@@ -95,6 +124,7 @@ public class AiInvestigationService {
                 .topContributingSignals(topSignals)
                 .classProbabilities(classProbs)
                 .timelineEventsCount(timelineEvents != null ? timelineEvents.size() : 0)
+                .geminiExplanation(geminiExplanationOpt.orElse(null))
                 .generatedAt(LocalDateTime.now())
                 .build();
     }

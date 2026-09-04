@@ -3,8 +3,6 @@
 -- Contains realistic distribution of normal payments & 10 forensic incident types
 -- =============================================================================
 
-USE payment_proof;
-
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- -----------------------------------------------------------------------------

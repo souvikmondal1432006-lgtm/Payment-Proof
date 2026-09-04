@@ -9,6 +9,9 @@
 -- 4. Fully indexed on foreign keys, external references (UTR, ARN, Order IDs), statuses, and timestamps.
 -- =============================================================================
 
+CREATE DATABASE IF NOT EXISTS payment_proof CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE payment_proof;
+
 SET FOREIGN_KEY_CHECKS = 0;
 
 DROP TABLE IF EXISTS audit_events;

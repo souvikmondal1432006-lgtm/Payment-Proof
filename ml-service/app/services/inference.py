@@ -15,21 +15,10 @@ from app.schemas.features import PaymentIncidentFeatures
 from app.schemas.prediction import IncidentPredictionResponse
 from app.services.explainability import extract_top_signals
 
-RECOMMENDED_ACTIONS = {
-    "NORMAL": "NO_ACTION_REQUIRED",
-    "DELAYED_CONFIRMATION": "NO_ACTION_REQUIRED",
-    "BANK_DEBIT_GATEWAY_FAILURE": "AUTO_REFUND_CUSTOMER",
-    "MISSING_WEBHOOK": "RESEND_WEBHOOK",
-    "DUPLICATE_PAYMENT": "AUTO_REFUND_CUSTOMER",
-    "REFUND_UNCERTAINTY": "MANUAL_BANK_ESCALATION",
-    "SETTLEMENT_MISMATCH": "FORCE_SETTLE_MERCHANT",
-    "ORDER_PAYMENT_CONFLICT": "AUTO_REFUND_CUSTOMER",
-    "UNRESOLVED": "MANUAL_BANK_ESCALATION"
-}
 
 class MLInferenceEngine:
     def __init__(self, models_dir: Optional[str] = None):
-        if models_dir is None:
+        if models_dir is None or not os.path.exists(models_dir):
             current_file_dir = os.path.dirname(os.path.abspath(__file__))
             ml_service_dir = os.path.dirname(os.path.dirname(current_file_dir))
             candidate_dir = os.path.join(ml_service_dir, "models")
@@ -96,26 +85,9 @@ class MLInferenceEngine:
         normal_prob = prob_dict.get("NORMAL", 0.0)
         anomaly_score = round(float(1.0 - normal_prob), 4)
 
-        # Prohibit-Retry Safety Invariant
-        # Backend must NEVER blindly retry if funds were debited during an active incident or ambiguous failure
-        bank_status = str(features.bank_status).upper()
-        gateway_status = str(features.gateway_status).upper()
-
-        if pred_class in [
-            "BANK_DEBIT_GATEWAY_FAILURE", "DUPLICATE_PAYMENT", "ORDER_PAYMENT_CONFLICT", "UNRESOLVED"
-        ]:
-            is_retry_prohibited = True
-        elif bank_status in ["SUCCESS", "DEBITED"] and gateway_status in ["FAILED", "TIMED_OUT", "PENDING"]:
-            is_retry_prohibited = True
-        elif features.refund_status in ["PENDING", "MANUAL_INTERVENTION_REQUIRED"]:
-            is_retry_prohibited = True
-        else:
-            is_retry_prohibited = False
-
-        # Extract Top Contributing Signals
-        top_signals = extract_top_signals(features_dict, pred_class, confidence)
-
-        recommended_action = RECOMMENDED_ACTIONS.get(pred_class, "MANUAL_BANK_ESCALATION")
+        # Extract Top Contributing Signals dynamically using empirical Random Forest feature importances
+        feature_importances = self.metadata.get("feature_importances", {}) if self.metadata else None
+        top_signals = extract_top_signals(features_dict, pred_class, confidence, feature_importances=feature_importances)
 
         # Human explanation synthesis
         explanation = f"Incident classified as {pred_class} with {confidence * 100:.1f}% confidence based on multi-party evidence."
@@ -132,9 +104,6 @@ class MLInferenceEngine:
             model_version=self.metadata.get("model_version", "incident-classifier-v1.0.0-rf"),
             top_contributing_signals=top_signals,
             class_probabilities=prob_dict,
-            is_retry_prohibited_recommendation=is_retry_prohibited,
-            recommended_action=recommended_action,
-            suggested_action=recommended_action,
             model_explanation=explanation
         )
 
