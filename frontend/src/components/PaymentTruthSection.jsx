@@ -219,14 +219,14 @@ export default function PaymentTruthSection({
           style={{ background: '#040404', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '10px 12px', cursor: 'pointer' }}
           className="surface-interactive"
         >
-          <div style={{ fontSize: '0.66rem', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', marginBottom: '4px' }}>
+          <div style={{ fontSize: '0.66rem', fontWeight: 700, color: incident.isRetryProhibited ? '#ef4444' : '#10b981', textTransform: 'uppercase', marginBottom: '4px' }}>
             5. Recommended Action
           </div>
-          <div className="font-display" style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff', marginBottom: '2px' }}>
-            AUTO-REFUND
+          <div className="font-display" style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff', marginBottom: '2px', textTransform: 'uppercase' }}>
+            {(ai.recommendedAction || 'AUTO_REFUND_CUSTOMER').replace(/_/g, ' ')}
           </div>
-          <div style={{ fontSize: '0.68rem', color: '#fca5a5', fontWeight: 600 }}>
-            Retry Prohibited
+          <div style={{ fontSize: '0.68rem', color: incident.isRetryProhibited ? '#fca5a5' : '#86efac', fontWeight: 600 }}>
+            {incident.isRetryProhibited ? 'Retry Prohibited' : 'Retry Permitted'}
           </div>
         </div>
       </div>

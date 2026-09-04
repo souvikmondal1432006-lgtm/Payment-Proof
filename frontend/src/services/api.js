@@ -234,15 +234,23 @@ function mapIncidentToUi(inc) {
     description: inc.description || 'Discrepancy detected across banking and merchant states.',
     openedAt: inc.openedAt || new Date().toISOString(),
     moneyAtRisk: inc.moneyAtRisk || inc.amount || 0,
-    isRetryProhibited: inc.isRetryProhibited !== undefined ? inc.isRetryProhibited : true,
-    retryReason: inc.retryReason || 'Strict safety invariant active.',
+    isRetryProhibited: inc.isRetryProhibited !== undefined ? inc.isRetryProhibited : (inc.retryProhibited !== undefined ? inc.retryProhibited : true),
+    retryReason: inc.retryReason || inc.retryProhibitionReason || 'Strict safety invariant active.',
     bank: inc.bank || { bankName: 'Core Bank Switch', status: 'SUCCESS', utr: '414960264709', latencyMs: 420 },
     gateway: inc.gateway || { gatewayName: 'Gateway PSP', status: 'PENDING', captureStatus: 'PENDING', latencyMs: 65000 },
     merchant: inc.merchant || { orderId: 'ORD-2026-00024', status: 'CANCELLED', fulfillmentStatus: 'CANCELLED' },
     webhook: inc.webhook || { deliveryStatus: 'DROPPED', httpStatusCode: 504, attemptCount: 3 },
     settlement: inc.settlement || { settlementStatus: 'ON_HOLD' },
     refund: inc.refund || { refundStatus: 'NOT_INITIATED' },
-    aiReport: inc.aiReport || {
+    aiReport: inc.aiReport ? {
+      ...inc.aiReport,
+      whatHappened: inc.aiReport.whatHappened || inc.aiReport.what_happened,
+      whyWeThinkThis: inc.aiReport.whyWeThinkThis || inc.aiReport.why_we_think_this,
+      whatIsUncertain: inc.aiReport.whatIsUncertain || inc.aiReport.what_is_uncertain,
+      recommendedAction: inc.aiReport.recommendedAction || inc.aiReport.recommended_action,
+      isRetryProhibited: inc.aiReport.isRetryProhibited !== undefined ? inc.aiReport.isRetryProhibited : (inc.aiReport.is_retry_prohibited !== undefined ? inc.aiReport.is_retry_prohibited : true),
+      retryProhibitionReason: inc.aiReport.retryProhibitionReason || inc.aiReport.retry_prohibition_reason
+    } : {
       whatHappened: "Your customer was charged, but the merchant did not receive confirmation before cancelling the order.",
       whyWeThinkThis: "The bank reports SUCCESS while the gateway remained PENDING and the merchant order was CANCELLED.",
       whatIsUncertain: "Unable to confirm whether the merchant inventory can be restored.",
