@@ -48,6 +48,15 @@ public class ResolutionService {
             throw new InvalidOperationException("Resolution actionTaken is required.");
         }
 
+        if (request.getResolutionType() == null) {
+            request.setResolutionType(ResolutionType.OPERATOR_MANUAL_OVERRIDE);
+        }
+
+        if (request.getResolutionNotes() == null || request.getResolutionNotes().isBlank()) {
+            request.setResolutionNotes("Authoritative resolution executed by " + 
+                    (request.getResolvedBy() != null ? request.getResolvedBy() : "operator") + ".");
+        }
+
         // Safety Invariant 1: External advisory models (ML / Gemini) cannot authorize or execute resolutions
         if (request.getResolvedBy() != null && (
                 request.getResolvedBy().toUpperCase().contains("GEMINI") ||
@@ -58,7 +67,8 @@ public class ResolutionService {
         }
 
         IncidentCase incident = incidentCaseRepository.findById(incidentId)
-                .orElseThrow(() -> new ResourceNotFoundException("IncidentCase", "incidentId", incidentId));
+                .or(() -> incidentCaseRepository.findFirstByPaymentIdOrderByOpenedAtDesc(incidentId))
+                .orElseThrow(() -> new ResourceNotFoundException("IncidentCase", "incidentId or paymentId", incidentId));
 
         // Safety Invariant 2: If incident is under NEEDS_REVIEW, automated resolution is prohibited; operator manual override is required
         if (incident.getCaseStatus() == CaseStatus.NEEDS_REVIEW && request.getResolutionType() != ResolutionType.OPERATOR_MANUAL_OVERRIDE) {

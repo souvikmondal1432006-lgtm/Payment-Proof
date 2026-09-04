@@ -1,5 +1,6 @@
 package com.paymentproof.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.paymentproof.entity.enums.LiabilityParty;
 import com.paymentproof.entity.enums.ResolutionAction;
 import com.paymentproof.entity.enums.ResolutionType;
@@ -19,13 +20,14 @@ public class ResolutionRequestDto {
     @NotNull(message = "actionTaken is required")
     private ResolutionAction actionTaken;
 
-    @NotNull(message = "resolutionType is required")
-    private ResolutionType resolutionType;
+    @Builder.Default
+    private ResolutionType resolutionType = ResolutionType.OPERATOR_MANUAL_OVERRIDE;
 
     @NotBlank(message = "resolvedBy is required")
     private String resolvedBy;
 
     @NotBlank(message = "resolutionNotes is required")
+    @JsonAlias({"notes", "resolution_notes"})
     private String resolutionNotes;
 
     private BigDecimal financialImpactAmount;

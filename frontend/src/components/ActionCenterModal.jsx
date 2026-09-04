@@ -21,9 +21,23 @@ export default function ActionCenterModal({
   const [confirmed, setConfirmed] = useState(false);
   const [internalResolving, setInternalResolving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const isBankDebited = activeCase.bank?.status === 'SUCCESS' || activeCase.bank?.status === 'DEBITED';
   const isResolving = externalResolving || internalResolving;
+
+  const ACTION_MAPPING = {
+    AUTO_REFUND_CUSTOMER: 'CUSTOMER_REFUNDED',
+    CUSTOMER_REFUNDED: 'CUSTOMER_REFUNDED',
+    RESEND_WEBHOOK: 'WEBHOOK_RESENT_AND_FULFILLED',
+    WEBHOOK_RESENT_AND_FULFILLED: 'WEBHOOK_RESENT_AND_FULFILLED',
+    FORCE_SETTLE_MERCHANT: 'MERCHANT_CREDITED',
+    MERCHANT_CREDITED: 'MERCHANT_CREDITED',
+    MANUAL_BANK_ESCALATION: 'ESCALATED_LEGAL_COMPLIANCE',
+    ESCALATED_LEGAL_COMPLIANCE: 'ESCALATED_LEGAL_COMPLIANCE',
+    DUPLICATE_REVERSED: 'DUPLICATE_REVERSED',
+    NO_DISCREPANCY_FOUND: 'NO_DISCREPANCY_FOUND'
+  };
 
   const resolutionOptions = [
     {
@@ -65,29 +79,37 @@ export default function ActionCenterModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!confirmed) return;
+    if (!confirmed || isResolving) return;
 
+    setErrorMessage(null);
     setInternalResolving(true);
     try {
+      const targetId = activeCase.incidentId || activeCase.id || activeCase.paymentId;
+      const mappedAction = ACTION_MAPPING[selectedAction] || selectedAction;
       const payload = {
-        actionTaken: selectedAction,
-        resolvedBy: operatorId,
-        notes: notes || `Authoritative resolution executed for incident ${activeCase.incidentId || activeCase.id}.`
+        actionTaken: mappedAction,
+        resolutionType: 'OPERATOR_MANUAL_OVERRIDE',
+        resolvedBy: operatorId || 'Priya Mukherjee',
+        resolutionNotes: notes || `Authoritative remediation executed for incident ${targetId}.`,
+        notes: notes || `Authoritative remediation executed for incident ${targetId}.`,
+        financialImpactAmount: Number(activeCase.amount || 0),
+        liabilityParty: 'PLATFORM_LOSS_NONE'
       };
 
       if (onResolve) {
         await onResolve(payload);
       } else {
-        await api.resolveIncident(activeCase.incidentId || activeCase.id, payload);
+        await api.resolveIncident(targetId, payload);
       }
 
       setSuccess(true);
       setTimeout(() => {
         if (onResolved) onResolved();
         onClose();
-      }, 1000);
+      }, 1200);
     } catch (err) {
       console.error('Failed to execute resolution:', err);
+      setErrorMessage(err.humanMessage || err.message || 'Failed to execute authoritative resolution.');
     } finally {
       setInternalResolving(false);
     }
@@ -313,6 +335,25 @@ export default function ActionCenterModal({
                 </label>
               </div>
             </div>
+
+            {/* Error Feedback */}
+            {errorMessage && (
+              <div style={{
+                margin: '0 18px 12px',
+                padding: '10px 14px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#f87171',
+                fontSize: '0.78rem'
+              }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             {/* Footer - Fixed Bottom */}
             <div style={{

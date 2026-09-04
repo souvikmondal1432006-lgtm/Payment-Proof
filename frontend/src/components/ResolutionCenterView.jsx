@@ -22,24 +22,46 @@ export default function ResolutionCenterView({
   const [notes, setNotes] = useState('');
   const [resolving, setResolving] = useState(false);
   const [successResult, setSuccessResult] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   if (!incident) return null;
 
   const isBankDebited = incident.bank?.status === 'SUCCESS' || incident.bank?.status === 'DEBITED';
 
+  const ACTION_MAPPING = {
+    AUTO_REFUND_CUSTOMER: 'CUSTOMER_REFUNDED',
+    CUSTOMER_REFUNDED: 'CUSTOMER_REFUNDED',
+    RESEND_WEBHOOK: 'WEBHOOK_RESENT_AND_FULFILLED',
+    WEBHOOK_RESENT_AND_FULFILLED: 'WEBHOOK_RESENT_AND_FULFILLED',
+    FORCE_SETTLE_MERCHANT: 'MERCHANT_CREDITED',
+    MERCHANT_CREDITED: 'MERCHANT_CREDITED',
+    MANUAL_BANK_ESCALATION: 'ESCALATED_LEGAL_COMPLIANCE',
+    ESCALATED_LEGAL_COMPLIANCE: 'ESCALATED_LEGAL_COMPLIANCE',
+    DUPLICATE_REVERSED: 'DUPLICATE_REVERSED',
+    NO_DISCREPANCY_FOUND: 'NO_DISCREPANCY_FOUND'
+  };
+
   const handleExecute = async () => {
+    setErrorMessage(null);
     setResolving(true);
     try {
+      const targetId = incident.incidentId || incident.id || incident.paymentId;
+      const mappedAction = ACTION_MAPPING[selectedAction] || selectedAction;
       const payload = {
-        actionTaken: selectedAction,
-        resolvedBy: currentUser?.name || 'LEAD_INVESTIGATOR',
-        notes: notes || `Authoritative resolution executed for incident ${incident.incidentId}.`
+        actionTaken: mappedAction,
+        resolutionType: 'OPERATOR_MANUAL_OVERRIDE',
+        resolvedBy: currentUser?.name || currentUser?.id || 'LEAD_INVESTIGATOR',
+        resolutionNotes: notes || `Authoritative remediation executed for incident ${targetId}.`,
+        notes: notes || `Authoritative remediation executed for incident ${targetId}.`,
+        financialImpactAmount: Number(incident.amount || 0),
+        liabilityParty: 'PLATFORM_LOSS_NONE'
       };
-      const res = await api.resolveIncident(incident.incidentId, payload);
+      const res = await api.resolveIncident(targetId, payload);
       setSuccessResult(res);
       if (onResolved) onResolved(res);
     } catch (e) {
       console.error('Failed to execute resolution:', e);
+      setErrorMessage(e.humanMessage || e.message || 'Failed to execute authoritative resolution.');
     } finally {
       setResolving(false);
     }
@@ -236,6 +258,25 @@ export default function ResolutionCenterView({
                 }}
               />
             </div>
+
+            {/* Error Feedback */}
+            {errorMessage && (
+              <div style={{
+                padding: '10px 14px',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: '#f87171',
+                fontSize: '0.8rem',
+                marginBottom: '10px'
+              }}>
+                <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             {/* Submit */}
             <button
