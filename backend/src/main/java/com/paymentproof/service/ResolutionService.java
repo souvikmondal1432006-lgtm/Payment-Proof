@@ -119,9 +119,7 @@ public class ResolutionService {
         }
 
         // Record Chained Tamper-Evident Audit Event
-        String auditAction = request.getResolutionType() == ResolutionType.OPERATOR_MANUAL_OVERRIDE
-                ? "MANUAL_OVERRIDE"
-                : "RESOLUTION_SELECTED";
+        String auditAction = "RESOLUTION_CREATED";
 
         auditService.logEvent(
                 "RESOLUTIONS",

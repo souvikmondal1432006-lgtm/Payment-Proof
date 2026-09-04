@@ -53,9 +53,57 @@ class PaymentIncidentFeatures(BaseModel):
         if not isinstance(values, dict):
             return values
 
+        # Convert Java camelCase keys to snake_case
+        camel_to_snake = {
+            "paymentId": "payment_id",
+            "incidentId": "incident_id",
+            "merchantId": "merchant_id",
+            "paymentMethod": "payment_method",
+            "bankName": "bank",
+            "bankStatus": "bank_status",
+            "bankLatencyMs": "bank_latency_ms",
+            "gatewayName": "gateway",
+            "gatewayStatus": "gateway_status",
+            "gatewayAuthStatus": "auth_status",
+            "gatewayCaptureStatus": "capture_status",
+            "authStatus": "auth_status",
+            "captureStatus": "capture_status",
+            "gatewayLatencyMs": "gateway_latency_ms",
+            "merchantStatus": "merchant_order_status",
+            "merchantOrderStatus": "merchant_order_status",
+            "merchantFulfillment": "merchant_fulfillment_status",
+            "merchantFulfillmentStatus": "merchant_fulfillment_status",
+            "webhookStatus": "webhook_status",
+            "webhookHttpCode": "webhook_http_code",
+            "webhookAttempts": "webhook_attempt_count",
+            "webhookAttemptCount": "webhook_attempt_count",
+            "settlementStatus": "settlement_status",
+            "refundStatus": "refund_status",
+            "bankReversalStatus": "bank_reversal_status",
+            "isAmountMatched": "is_amount_matched",
+            "isDuplicateCandidate": "is_duplicate_candidate"
+        }
+        for camel, snake in camel_to_snake.items():
+            if camel in values and snake not in values:
+                values[snake] = values[camel]
+
         # Normalize Bank
         if "bank_name" in values and values["bank_name"] is not None and "bank" not in values:
             values["bank"] = values["bank_name"]
+
+        raw_bank = str(values.get("bank", values.get("bank_name", "HDFC"))).upper()
+        if "HDFC" in raw_bank:
+            values["bank"] = "HDFC"
+        elif "ICICI" in raw_bank:
+            values["bank"] = "ICICI"
+        elif "SBI" in raw_bank:
+            values["bank"] = "SBI"
+        elif "AXIS" in raw_bank:
+            values["bank"] = "AXIS"
+        elif "KOTAK" in raw_bank:
+            values["bank"] = "KOTAK"
+        elif "PNB" in raw_bank:
+            values["bank"] = "PNB"
         
         # Normalize Gateway
         if "gateway_name" in values and values["gateway_name"] is not None and "gateway" not in values:

@@ -29,6 +29,23 @@ public class IncidentController {
     private final InvestigationService investigationService;
     private final EvidenceService evidenceService;
     private final ResolutionService resolutionService;
+    private final com.paymentproof.service.HeroIncidentService heroIncidentService;
+
+    @PostMapping("/demo/reset")
+    public ResponseEntity<IncidentCaseDto> resetDemo() {
+        log.info("Authoritative DEMO RESET requested for inc_test_001");
+        heroIncidentService.resetHeroIncident();
+        IncidentCaseDto refreshed = incidentService.getIncidentById("inc_test_001");
+        return ResponseEntity.ok(refreshed);
+    }
+
+    @PostMapping("/{id}/reset")
+    public ResponseEntity<IncidentCaseDto> resetIncident(@PathVariable("id") String incidentId) {
+        log.info("Reset requested for incident ID: {}", incidentId);
+        heroIncidentService.resetHeroIncident();
+        IncidentCaseDto refreshed = incidentService.getIncidentById("inc_test_001");
+        return ResponseEntity.ok(refreshed);
+    }
 
     @GetMapping
     public ResponseEntity<PagedResponseDto<IncidentCaseDto>> getIncidents(

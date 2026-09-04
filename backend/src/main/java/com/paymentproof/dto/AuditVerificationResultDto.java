@@ -1,5 +1,6 @@
 package com.paymentproof.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -10,7 +11,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class AuditVerificationResultDto {
+    @JsonProperty("isValid")
     private boolean isValid;
+
+    @JsonProperty("isValid")
+    public boolean getIsValid() {
+        return isValid;
+    }
     private int totalEventsVerified;
     private String genesisHash;
     private String latestHeadHash;

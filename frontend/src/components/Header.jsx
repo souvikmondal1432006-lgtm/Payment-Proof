@@ -5,6 +5,7 @@ import {
   Database,
   Cpu,
   RefreshCw,
+  RotateCcw,
   PlayCircle,
   FileText,
   Search,
@@ -20,6 +21,7 @@ export default function Header({
   systemHealth,
   currentUser,
   onRefresh,
+  onResetDemo,
   onOpenSimulator,
   activeView,
   setActiveView,
@@ -114,6 +116,25 @@ export default function Header({
           <PlayCircle size={14} style={{ color: '#f59e0b' }} />
           Simulate Anomaly
         </button>
+
+        {/* Reset Demo Button */}
+        {onResetDemo && (
+          <button
+            onClick={onResetDemo}
+            className="btn btn-outline-white btn-sm"
+            style={{
+              borderColor: 'rgba(6, 182, 212, 0.45)',
+              color: '#22d3ee',
+              background: 'rgba(6, 182, 212, 0.08)',
+              fontWeight: 700,
+              gap: '6px'
+            }}
+            title="Reset Demo Scenario (inc_test_001) to pristine uninvestigated state"
+          >
+            <RotateCcw size={13} />
+            Reset Demo
+          </button>
+        )}
 
         {/* Refresh */}
         <button

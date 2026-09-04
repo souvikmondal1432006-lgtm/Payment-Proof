@@ -141,7 +141,7 @@ export default function SystemHealthView() {
     {
       id: 'conflicting_states',
       name: '6. Conflicting Payment States',
-      whatFailed: 'Bank reports SUCCESS (₹8,500 debited) but Gateway reports TIMED_OUT and Merchant reports CANCELLED.',
+      whatFailed: 'Bank reports SUCCESS (₹4,500 debited) but Gateway reports TIMED_OUT and Merchant reports CANCELLED.',
       whatUserSees: '"Payment status is inconsistent. Different payment systems are reporting different states."',
       whatSystemDoes: 'System detects contradiction clash, highlights the divergence in Contradiction Matrix, and prohibits blind retry.',
       dataPreserved: 'Bank UTR, Gateway trace, and Merchant order logs all captured.',

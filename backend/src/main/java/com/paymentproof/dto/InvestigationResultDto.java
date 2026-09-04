@@ -67,4 +67,19 @@ public class InvestigationResultDto {
     // Timing & Metadata
     private LocalDateTime investigatedAt;
     private String summary;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("caseStatus")
+    public CaseStatus getCaseStatus() {
+        return investigationStatus;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("isRetryProhibited")
+    public boolean getIsRetryProhibited() {
+        return isRetryProhibited;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("retryReason")
+    public String getRetryReason() {
+        return retryProhibitionReason;
+    }
 }

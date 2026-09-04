@@ -47,6 +47,18 @@ public class InvestigationService {
         IncidentCase incident = incidentCaseRepository.findById(incidentId)
                 .orElseThrow(() -> new ResourceNotFoundException("IncidentCase", "incidentId", incidentId));
 
+        // 0. Record Chained Audit Event: INVESTIGATION_STARTED
+        auditService.logEvent(
+                "INCIDENT_CASES",
+                incident.getIncidentId(),
+                "INVESTIGATION_STARTED",
+                ActorType.WORKFLOW_ENGINE,
+                "JAVA_INVESTIGATION_ENGINE",
+                String.format("{\"caseStatus\":\"%s\"}", incident.getCaseStatus()),
+                "{\"status\":\"INVESTIGATING\"}",
+                "127.0.0.1"
+        );
+
         Payment payment = paymentRepository.findById(incident.getPaymentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", "paymentId", incident.getPaymentId()));
 
@@ -228,14 +240,42 @@ public class InvestigationService {
             assessmentEntity.setSuggestedAction(recommendedAction);
             mlAssessmentRepository.save(assessmentEntity);
 
-            if (confidence != null && confidence.compareTo(ML_CONFIDENCE_THRESHOLD) < 0) {
+            // Record Chained Audit Event: ML_CLASSIFIED
+            auditService.logEvent(
+                    "INCIDENT_CASES",
+                    incident.getIncidentId(),
+                    "ML_CLASSIFIED",
+                    ActorType.SYSTEM,
+                    "PYTHON_RANDOM_FOREST",
+                    "{}",
+                    String.format("{\"predictedRootCause\":\"%s\",\"confidence\":%s,\"anomalyScore\":%s,\"model\":\"Random Forest Classifier (120 trees)\"}",
+                            predictedRootCause, confidence != null ? confidence.toString() : "null", anomalyScore != null ? anomalyScore.toString() : "null"),
+                    "127.0.0.1"
+            );
+
+            // Record Chained Audit Event: SAFETY_DECISION_MADE
+            auditService.logEvent(
+                    "INCIDENT_CASES",
+                    incident.getIncidentId(),
+                    "SAFETY_DECISION_MADE",
+                    ActorType.WORKFLOW_ENGINE,
+                    "JAVA_SAFETY_RULES",
+                    "{\"decision\":\"PENDING\"}",
+                    String.format("{\"authoritativeSafeAction\":\"%s\",\"retryBlocked\":%b,\"moneyAtRisk\":%s,\"decisionAuthority\":\"Java Safety Rules\"}",
+                            recommendedAction, isRetryProhibited, moneyAtRisk),
+                    "127.0.0.1"
+            );
+
+            if (isBankDebited && (isGatewayFailed || isMerchantCancelled)) {
+                finalCaseStatus = CaseStatus.AI_ANALYZED;
+                summary = String.format("Investigation concluded for %s: Multi-party evidence confirms Bank debited INR %s with Gateway failure/cancellation. ML classified as '%s' (%s%% confidence). Authoritative action: %s. Prohibit retry: %b.",
+                        incident.getIncidentId(), payment.getAmount(), predictedRootCause,
+                        confidence != null ? confidence.multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP) : "N/A",
+                        recommendedAction, isRetryProhibited);
+            } else if (confidence != null && confidence.compareTo(ML_CONFIDENCE_THRESHOLD) < 0) {
                 finalCaseStatus = CaseStatus.NEEDS_REVIEW;
                 summary = String.format("Automated ML prediction confidence (%s%%) is below threshold (70.0%%). Root cause suggested as '%s'. Java safety decision: %s. Escalated to operator review.",
                         confidence.multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP), predictedRootCause, recommendedAction);
-            } else if (isBankDebited && isMerchantCancelled && !"BANK_DEBIT_GATEWAY_FAILURE".equalsIgnoreCase(predictedRootCause) && !"ORDER_PAYMENT_CONFLICT".equalsIgnoreCase(predictedRootCause)) {
-                finalCaseStatus = CaseStatus.AI_ANALYZED;
-                summary = String.format("Investigation concluded: ML model predicted '%s' (%s%% confidence), but deterministic multi-party telemetry confirms active bank debit with cancelled merchant order. Overridden to auto-refund customer.",
-                        predictedRootCause, confidence.multiply(BigDecimal.valueOf(100)).setScale(1, RoundingMode.HALF_UP));
             } else {
                 finalCaseStatus = CaseStatus.AI_ANALYZED;
                 summary = String.format("Investigation concluded for %s: Root cause predicted as '%s' with %s confidence. Authoritative action: %s. Prohibit retry: %b.",

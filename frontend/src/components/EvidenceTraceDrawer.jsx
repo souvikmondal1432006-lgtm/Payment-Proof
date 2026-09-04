@@ -29,6 +29,14 @@ export default function EvidenceTraceDrawer({
   const getSourceData = () => {
     const src = selectedSource || (selectedEvent ? selectedEvent.sourceId : 'BANK');
 
+    const amountVal = Number(incident?.amount || 4500.00);
+    const amountFormatted = amountVal.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+    const amountIso = String(Math.round(amountVal * 100)).padStart(12, '0');
+    const bankUtr = incident?.bank?.utr || 'UTR984102947101';
+    const paymentId = incident?.paymentId || 'pay_test_001';
+    const orderId = incident?.orderId || 'ORD_9841_PAY';
+    const merchantName = incident?.merchantName || 'Swiggy India OMS';
+
     switch (src) {
       case 'BANK':
         return {
@@ -36,16 +44,16 @@ export default function EvidenceTraceDrawer({
           sourceName: 'Core Banking Network (HDFC / NPCI Switch)',
           status: 'SUCCESS (200 OK)',
           color: '#10b981',
-          utr: incident?.bank?.utr || '414960264709',
+          utr: bankUtr,
           timestamp: '2026-08-30T10:43:20.420Z',
           checksum: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
           payload: `MTI: 0200 (Financial Transaction Request / Completion)
 ProcessingCode: 000000 (Goods & Services Debit)
-Amount: 000000850000 (INR 8,500.00)
+Amount: ${amountIso} (INR ${amountFormatted})
 TransmissionDateTime: 20260830104320
 SystemTraceAuditNumber (STAN): 414960
-RetrievalReferenceNumber (RRN/UTR): ${incident?.bank?.utr || '414960264709'}
-CardAcceptorId: BOOKMYSHOW_MUMBAI
+RetrievalReferenceNumber (RRN/UTR): ${bankUtr}
+CardAcceptorId: ${merchantName.toUpperCase().replace(/\s+/g, '_')}
 ResponseCode: 00 (APPROVED / COMPLETED)
 NetworkLatency: 420ms`
         };
@@ -54,17 +62,17 @@ NetworkLatency: 420ms`
         return {
           title: 'Gateway Aggregator Telemetry Trace',
           sourceName: 'Razorpay PSP Pipeline',
-          status: 'PENDING / TIMED OUT',
+          status: 'FAILED / TIMED OUT',
           color: '#ef4444',
-          utr: incident?.paymentId || 'pay_000024',
+          utr: paymentId,
           timestamp: '2026-08-30T10:44:25.000Z',
           checksum: '8f4811e03a985f524c568c8194432168926941584742a7ec72922756a12b4899',
           payload: `{
-  "payment_id": "${incident?.paymentId || 'pay_000024'}",
-  "order_id": "${incident?.orderId || 'ORD-2026-00024'}",
-  "status": "pending",
-  "auth_status": "TIMEOUT",
-  "capture_status": "FAILED",
+  "payment_id": "${paymentId}",
+  "order_id": "${orderId}",
+  "status": "failed",
+  "auth_status": "FAILED",
+  "capture_status": "NOT_REQUESTED",
   "latency_ms": 65000,
   "error_code": "GATEWAY_TIMEOUT_AFTER_65S",
   "client_ip": "103.101.148.76"
@@ -74,19 +82,19 @@ NetworkLatency: 420ms`
       case 'MERCHANT':
         return {
           title: 'Merchant Order Management (OMS) Record',
-          sourceName: 'BookMyShow India OMS',
+          sourceName: merchantName,
           status: 'CANCELLED',
           color: '#ef4444',
-          utr: incident?.orderId || 'ORD-2026-00024',
+          utr: orderId,
           timestamp: '2026-08-30T10:44:30.000Z',
           checksum: '6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b',
           payload: `{
-  "order_id": "${incident?.orderId || 'ORD-2026-00024'}",
-  "merchant_id": "${incident?.merchantId || 'merch_bookmyshow'}",
+  "order_id": "${orderId}",
+  "merchant_id": "${incident?.merchantId || 'merch_swiggy_ind'}",
   "order_status": "CANCELLED",
   "fulfillment_status": "CANCELLED",
   "cancellation_reason": "SESSION_TIMEOUT_NO_PROOF",
-  "items": [{"item": "Cinema Tickets (2x)", "amount": 8500.00}]
+  "items": [{"item": "Food & Beverage Order", "amount": ${amountVal.toFixed(2)}}]
 }`
         };
 
@@ -99,7 +107,7 @@ NetworkLatency: 420ms`
           utr: 'whk_delivery_9901',
           timestamp: '2026-08-30T10:45:00.000Z',
           checksum: 'd4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35',
-          payload: `TargetURL: https://api.bookmyshow.com/payments/webhook
+          payload: `TargetURL: https://api.swiggy.com/payments/webhook
 Attempts: 3 of 3
 HTTPStatusCode: 504 Gateway Timeout
 DeliveryStatus: DROPPED
@@ -115,9 +123,9 @@ Signature: sha256=a1b2c3d4e5f6...`
           utr: 'stl_batch_20260830',
           timestamp: '2026-08-30T10:45:10.000Z',
           checksum: '4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce',
-          payload: `GrossAmount: INR 8,500.00
-MDR_Fee: INR 170.00 (2.0%)
-GST: INR 30.60 (18% on MDR)
+          payload: `GrossAmount: INR ${amountFormatted}
+MDR_Fee: INR ${(amountVal * 0.02).toFixed(2)} (2.0%)
+GST: INR ${(amountVal * 0.02 * 0.18).toFixed(2)} (18% on MDR)
 NetSettled: INR 0.00 (Payout Batch ON_HOLD due to active incident case)`
         };
 
@@ -132,7 +140,7 @@ NetSettled: INR 0.00 (Payout Batch ON_HOLD due to active incident case)`
           checksum: '4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a',
           payload: `Action: INITIATE_AUTO_REFUND_CUSTOMER
 Destination: Original UPI VPA / Bank Account
-Amount: INR 8,500.00
+Amount: INR ${amountFormatted}
 Status: AWAITING_OPERATOR_SIGN_OFF`
         };
     }

@@ -154,6 +154,18 @@ export default function App() {
     setIsAiModalOpen(true);
   };
 
+  const handleResetDemo = async () => {
+    try {
+      await api.resetDemo();
+      await loadAllData();
+      setSelectedCaseId('inc_test_001');
+      await loadCaseDetail('inc_test_001');
+      setActiveView('investigation');
+    } catch (err) {
+      console.error('Failed to reset demo scenario:', err);
+    }
+  };
+
   const handleQuickLogin = (personaId) => {
     if (personaId === 'operator_priya_m') {
       setCurrentUser({
@@ -215,6 +227,7 @@ export default function App() {
         systemHealth={systemHealth}
         currentUser={currentUser}
         onRefresh={loadAllData}
+        onResetDemo={handleResetDemo}
         onOpenSimulator={() => setIsSimulatorOpen(true)}
         activeView={activeView}
         setActiveView={setActiveView}
@@ -400,6 +413,9 @@ export default function App() {
           onResolved={() => {
             setIsActionModalOpen(false);
             loadAllData();
+            if (selectedCaseId) {
+              loadCaseDetail(selectedCaseId);
+            }
           }}
         />
       )}
@@ -410,6 +426,10 @@ export default function App() {
           isOpen={isAiModalOpen}
           onClose={() => setIsAiModalOpen(false)}
           incident={selectedCaseDetail}
+          onApplyAssessment={(updated) => {
+            setSelectedCaseDetail(updated);
+            loadAllData();
+          }}
           onOpenResolution={() => {
             setIsAiModalOpen(false);
             setIsActionModalOpen(true);

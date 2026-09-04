@@ -1,6 +1,7 @@
 package com.paymentproof.config;
 
 import com.paymentproof.repository.IncidentCaseRepository;
+import com.paymentproof.service.HeroIncidentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -16,6 +17,7 @@ import javax.sql.DataSource;
 public class DataSeeder implements CommandLineRunner {
 
     private final IncidentCaseRepository incidentCaseRepository;
+    private final HeroIncidentService heroIncidentService;
     private final DataSource dataSource;
 
     @org.springframework.beans.factory.annotation.Value("${app.database.auto-seed:true}")
@@ -44,6 +46,13 @@ public class DataSeeder implements CommandLineRunner {
             }
         } else {
             log.info("Database already contains {} incident cases. Skipping seed data insertion.", count);
+        }
+
+        // Always ensure Hero Demo Incident (inc_test_001 / pay_test_001) is initialized in clean state
+        try {
+            heroIncidentService.seedHeroIncident();
+        } catch (Exception e) {
+            log.error("Failed to seed hero demo incident: {}", e.getMessage(), e);
         }
     }
 }

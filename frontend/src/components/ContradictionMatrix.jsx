@@ -16,14 +16,18 @@ export default function ContradictionMatrix({ incident, onSelectContradiction })
   const isGhostDebit = incident.incidentType === 'BANK_DEBIT_GATEWAY_FAILURE';
   const isMissingWebhook = incident.incidentType === 'MISSING_WEBHOOK';
 
+  const amountFormatted = Number(incident.amount || 4500).toLocaleString('en-IN');
+  const bankUtr = incident.bank?.utr || 'UTR984102947101';
+  const orderId = incident.orderId || 'ORD_9841_PAY';
+
   const contradictions = [
     {
       id: 'contra_01',
       type: 'BANK_VS_MERCHANT_CLASH',
       title: 'State Clash: Bank SUCCESS vs Merchant CANCELLED',
       severity: 'CRITICAL',
-      sourceA: { name: 'Core Bank Switch', state: 'SUCCESS (₹8,500 DEBITED)', utr: incident.bank?.utr || '414960264709' },
-      sourceB: { name: 'Merchant OMS', state: 'CANCELLED (CART RELEASED)', orderId: incident.orderId || 'ORD-2026-00024' },
+      sourceA: { name: 'Core Bank Switch', state: `SUCCESS (₹${amountFormatted} DEBITED)`, utr: bankUtr },
+      sourceB: { name: 'Merchant OMS', state: 'CANCELLED (CART RELEASED)', orderId: orderId },
       divergenceSummary: 'Customer account was debited, but the merchant never received confirmation before session expiry.',
       remedy: 'Customer holds valid bank debit proof. Automated instant refund required to prevent financial loss.'
     },
@@ -32,7 +36,7 @@ export default function ContradictionMatrix({ incident, onSelectContradiction })
       type: 'GATEWAY_TIMEOUT_CLASH',
       title: 'Latency Clash: Gateway 65s Timeout vs Bank 420ms Clearance',
       severity: 'HIGH',
-      sourceA: { name: 'Bank Switch', state: '420ms Latency (Approved)', utr: incident.bank?.utr },
+      sourceA: { name: 'Bank Switch', state: '420ms Latency (Approved)', utr: bankUtr },
       sourceB: { name: 'Gateway Aggregator', state: '65,000ms Latency (Timed Out)', orderId: 'PSP Timeout' },
       divergenceSummary: 'Core banking cleared the debit in 420ms, but asynchronous network socket between PSP and Gateway timed out after 65 seconds.',
       remedy: 'Nodal switch holds the captured funds in transit escrow.'

@@ -120,7 +120,7 @@ export default function AiConclusionView({
             1. What Happened
           </div>
           <div style={{ fontSize: '1.05rem', color: '#ffffff', lineHeight: 1.6, fontWeight: 500 }}>
-            {ai.whatHappened || 'Your customer was charged ₹8,500 at HDFC Bank via UPI, but the payment gateway experienced an upstream timeout. Consequently, BookMyShow never received confirmation and cancelled the seat reservation.'}
+            {ai.whatHappened || `Your customer was charged ₹${Number(incident.amount || 4500).toLocaleString('en-IN')} via UPI from their bank account, but an upstream network timeout prevented ${incident.merchantName || 'the merchant'} from confirming the payment before the checkout session expired.`}
           </div>
         </div>
 
@@ -130,7 +130,7 @@ export default function AiConclusionView({
             2. Why We Think This (Multi-System Evidence Synthesis)
           </div>
           <div style={{ fontSize: '0.92rem', color: 'var(--text-off-white)', lineHeight: 1.6, background: '#121212', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-            {ai.whyWeThinkThis || 'Evidence synthesis indicates: Bank switch reported SUCCESS (UTR: 414960264709, Latency: 420ms). Gateway reported PENDING (Latency: 65,000ms). Merchant OMS recorded CANCELLED (Reason: SESSION_TIMEOUT_NO_PROOF). Webhook delivery resulted in DROPPED (HTTP 504 after 3 attempts). Statistical ML classifier assigned 99.2% confidence to BANK_DEBIT_GATEWAY_FAILURE.'}
+            {ai.whyWeThinkThis || `Evidence synthesis indicates: Bank switch reported SUCCESS (UTR: ${incident.bank?.utr || 'UTR984102947101'}, Latency: 420ms). Gateway reported FAILED (Latency: 65,000ms). Merchant OMS recorded CANCELLED (Order: ${incident.orderId || 'ORD_9841_PAY'}). Webhook delivery resulted in DROPPED (HTTP 504 after 3 attempts). Statistical ML classifier assigned 97.5% confidence to BANK_DEBIT_GATEWAY_FAILURE.`}
           </div>
         </div>
 
@@ -140,7 +140,7 @@ export default function AiConclusionView({
             3. What Is Uncertain (Unresolved Distributed Questions)
           </div>
           <div style={{ fontSize: '0.9rem', color: '#fca5a5', lineHeight: 1.5, background: 'rgba(239, 68, 68, 0.05)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-            {ai.whatIsUncertain || 'Unable to confirm whether BookMyShow reallocated the cinema seats to another customer or can restore the reservation. Unable to confirm if the issuing bank scheduled an automatic T+5 clearing reversal.'}
+            {ai.whatIsUncertain || `Unable to confirm if ${incident.merchantName || 'the merchant'} can restore the cancelled cart or if the bank switch scheduled an automatic clearing reversal.`}
           </div>
         </div>
 
@@ -151,12 +151,12 @@ export default function AiConclusionView({
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {(ai.decisionFactors || [
-              "Bank Telemetry: status=SUCCESS, utr=414960264709, debited_amount=8500.00",
-              "Gateway Telemetry: status=PENDING, capture=PENDING, latency=65000ms",
-              "Merchant OMS: order_status=CANCELLED, fulfillment=CANCELLED, cancellation_reason=SESSION_TIMEOUT_NO_PROOF",
+              `Bank Telemetry: status=SUCCESS, utr=${incident.bank?.utr || 'UTR984102947101'}, debited_amount=${Number(incident.amount || 4500).toFixed(2)}`,
+              "Gateway Telemetry: status=FAILED, capture=NOT_REQUESTED, latency=65000ms",
+              `Merchant OMS: order_id=${incident.orderId || 'ORD_9841_PAY'}, order_status=CANCELLED, fulfillment=UNFULFILLED`,
               "Webhook Engine: delivery_status=DROPPED, http_code=504, attempts=3",
               "Safety Invariant: is_retry_prohibited=true",
-              "ML Advisory: model=incident-classifier-v1.0.0-rf, root_cause=BANK_DEBIT_GATEWAY_FAILURE, confidence=0.9924"
+              `ML Advisory: model=incident-classifier-v1.0.0-rf, root_cause=${incident.predictedRootCause || 'BANK_DEBIT_GATEWAY_FAILURE'}, confidence=${incident.confidence || 0.9750}`
             ]).map((factor, idx) => (
               <div key={idx} className="font-mono" style={{ background: '#050505', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-subtle)', fontSize: '0.78rem', color: '#a1a1aa' }}>
                 • {factor}

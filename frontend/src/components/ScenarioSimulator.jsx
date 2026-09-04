@@ -11,8 +11,8 @@ export default function ScenarioSimulator({
   if (!isOpen) return null;
 
   const [scenarioType, setScenarioType] = useState('GHOST_CAPTURE');
-  const [merchantName, setMerchantName] = useState('BookMyShow India');
-  const [amount, setAmount] = useState('8500.00');
+  const [merchantName, setMerchantName] = useState('Swiggy India');
+  const [amount, setAmount] = useState('4500.00');
   const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [internalSimulating, setInternalSimulating] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -21,9 +21,9 @@ export default function ScenarioSimulator({
     {
       type: 'GHOST_CAPTURE',
       title: 'Ghost Debit (Bank Debited, Gateway Timeout, Order Cancelled)',
-      desc: 'Bank switch reports SUCCESS (00), Gateway reports 65s timeout, Merchant OMS auto-cancels the seat reservation.',
-      defaultAmount: '8500.00',
-      defaultMerchant: 'BookMyShow India',
+      desc: 'Bank switch reports SUCCESS (00), Gateway reports 65s timeout, Merchant OMS auto-cancels order.',
+      defaultAmount: '4500.00',
+      defaultMerchant: 'Swiggy India',
       badge: 'CRITICAL'
     },
     {
