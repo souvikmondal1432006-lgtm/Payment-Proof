@@ -31,6 +31,12 @@ public class CorsConfig {
             config.addAllowedOriginPattern("*");
         }
 
+        // Always ensure Vercel and Railway cloud patterns are permitted
+        config.addAllowedOriginPattern("https://*.vercel.app");
+        config.addAllowedOriginPattern("https://*.up.railway.app");
+        config.addAllowedOriginPattern("http://localhost:*");
+        config.addAllowedOriginPattern("http://127.0.0.1:*");
+
         config.addAllowedHeader("*");
         config.addAllowedMethod("*");
         config.setMaxAge(3600L);
