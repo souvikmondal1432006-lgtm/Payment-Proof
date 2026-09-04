@@ -73,6 +73,10 @@ public class InvestigationResultDto {
         return investigationStatus;
     }
 
+    public boolean isRetryProhibited() {
+        return isRetryProhibited;
+    }
+
     @com.fasterxml.jackson.annotation.JsonProperty("isRetryProhibited")
     public boolean getIsRetryProhibited() {
         return isRetryProhibited;

@@ -14,6 +14,10 @@ public class AuditVerificationResultDto {
     @JsonProperty("isValid")
     private boolean isValid;
 
+    public boolean isValid() {
+        return isValid;
+    }
+
     @JsonProperty("isValid")
     public boolean getIsValid() {
         return isValid;
