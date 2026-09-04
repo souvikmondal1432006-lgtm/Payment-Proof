@@ -1101,7 +1101,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 1. PAYMENTS ({len(data['payments'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO payments (payment_id, merchant_id, customer_id, order_id, amount, currency, payment_method, payment_method_subtype, status, client_ip, user_agent, initiated_at, completed_at, updated_at) VALUES\n")
+        f.write("INSERT IGNORE INTO payments (payment_id, merchant_id, customer_id, order_id, amount, currency, payment_method, payment_method_subtype, status, client_ip, user_agent, initiated_at, completed_at, updated_at) VALUES\n")
         rows = []
         for r in data["payments"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_num(r[4])}, {escape_sql_str(r[5])}, {escape_sql_str(r[6])}, {escape_sql_str(r[7])}, {escape_sql_str(r[8])}, {escape_sql_str(r[9])}, {escape_sql_str(r[10])}, {format_ts(r[11])}, {format_ts(r[12])}, {format_ts(r[13])})")
@@ -1111,7 +1111,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 2. PAYMENT_EVENTS ({len(data['payment_events'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO payment_events (event_id, payment_id, event_type, from_status, to_status, event_source, event_payload, event_timestamp) VALUES\n")
+        f.write("INSERT IGNORE INTO payment_events (event_id, payment_id, event_type, from_status, to_status, event_source, event_payload, event_timestamp) VALUES\n")
         rows = []
         for r in data["payment_events"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_json(r[6])}, {format_ts(r[7])})")
@@ -1121,7 +1121,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 3. BANK_RECORDS ({len(data['bank_records'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO bank_records (bank_record_id, payment_id, bank_name, bank_reference_number, utr_number, account_last4, bank_status, debited_amount, currency, response_code, response_message, network_latency_ms, bank_timestamp, raw_payload, created_at) VALUES\n")
+        f.write("INSERT IGNORE INTO bank_records (bank_record_id, payment_id, bank_name, bank_reference_number, utr_number, account_last4, bank_status, debited_amount, currency, response_code, response_message, network_latency_ms, bank_timestamp, raw_payload, created_at) VALUES\n")
         rows = []
         for r in data["bank_records"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_str(r[6])}, {escape_sql_num(r[7])}, {escape_sql_str(r[8])}, {escape_sql_str(r[9])}, {escape_sql_str(r[10])}, {r[11] if r[11] is not None else 'NULL'}, {format_ts(r[12])}, {escape_sql_json(r[13])}, {format_ts(r[14])})")
@@ -1131,7 +1131,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 4. GATEWAY_RECORDS ({len(data['gateway_records'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO gateway_records (gateway_record_id, payment_id, gateway_name, gateway_transaction_id, gateway_order_id, auth_status, capture_status, gateway_status, authorized_amount, captured_amount, fee, tax, error_code, error_description, processing_latency_ms, gateway_timestamp, raw_payload, created_at) VALUES\n")
+        f.write("INSERT IGNORE INTO gateway_records (gateway_record_id, payment_id, gateway_name, gateway_transaction_id, gateway_order_id, auth_status, capture_status, gateway_status, authorized_amount, captured_amount, fee, tax, error_code, error_description, processing_latency_ms, gateway_timestamp, raw_payload, created_at) VALUES\n")
         rows = []
         for r in data["gateway_records"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_str(r[6])}, {escape_sql_str(r[7])}, {escape_sql_num(r[8])}, {escape_sql_num(r[9])}, {escape_sql_num(r[10])}, {escape_sql_num(r[11])}, {escape_sql_str(r[12])}, {escape_sql_str(r[13])}, {r[14] if r[14] is not None else 'NULL'}, {format_ts(r[15])}, {escape_sql_json(r[16])}, {format_ts(r[17])})")
@@ -1141,7 +1141,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 5. MERCHANT_ORDER_RECORDS ({len(data['merchant_order_records'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO merchant_order_records (merchant_order_record_id, payment_id, merchant_id, merchant_order_id, order_status, fulfillment_status, expected_amount, currency, cancellation_reason, customer_notes, merchant_updated_at, created_at) VALUES\n")
+        f.write("INSERT IGNORE INTO merchant_order_records (merchant_order_record_id, payment_id, merchant_id, merchant_order_id, order_status, fulfillment_status, expected_amount, currency, cancellation_reason, customer_notes, merchant_updated_at, created_at) VALUES\n")
         rows = []
         for r in data["merchant_order_records"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_num(r[6])}, {escape_sql_str(r[7])}, {escape_sql_str(r[8])}, {escape_sql_str(r[9])}, {format_ts(r[10])}, {format_ts(r[11])})")
@@ -1151,7 +1151,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 6. WEBHOOK_RECORDS ({len(data['webhook_records'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO webhook_records (webhook_id, payment_id, merchant_id, event_name, target_url, attempt_count, max_attempts, delivery_status, http_status_code, latency_ms, request_payload_hash, request_payload, response_body, first_attempt_at, last_attempt_at, next_retry_at, created_at) VALUES\n")
+        f.write("INSERT IGNORE INTO webhook_records (webhook_id, payment_id, merchant_id, event_name, target_url, attempt_count, max_attempts, delivery_status, http_status_code, latency_ms, request_payload_hash, request_payload, response_body, first_attempt_at, last_attempt_at, next_retry_at, created_at) VALUES\n")
         rows = []
         for r in data["webhook_records"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {r[5]}, {r[6]}, {escape_sql_str(r[7])}, {r[8] if r[8] is not None else 'NULL'}, {r[9] if r[9] is not None else 'NULL'}, {escape_sql_str(r[10])}, {escape_sql_json(r[11])}, {escape_sql_str(r[12])}, {format_ts(r[13])}, {format_ts(r[14])}, {format_ts(r[15])}, {format_ts(r[16])})")
@@ -1161,7 +1161,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 7. SETTLEMENT_RECORDS ({len(data['settlement_records'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO settlement_records (settlement_id, payment_id, merchant_id, batch_id, gross_amount, fee_deducted, tax_deducted, net_settled_amount, currency, settlement_status, settlement_utr, settlement_bank_account, settled_at, created_at, updated_at) VALUES\n")
+        f.write("INSERT IGNORE INTO settlement_records (settlement_id, payment_id, merchant_id, batch_id, gross_amount, fee_deducted, tax_deducted, net_settled_amount, currency, settlement_status, settlement_utr, settlement_bank_account, settled_at, created_at, updated_at) VALUES\n")
         rows = []
         for r in data["settlement_records"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_num(r[4])}, {escape_sql_num(r[5])}, {escape_sql_num(r[6])}, {escape_sql_num(r[7])}, {escape_sql_str(r[8])}, {escape_sql_str(r[9])}, {escape_sql_str(r[10])}, {escape_sql_str(r[11])}, {format_ts(r[12])}, {format_ts(r[13])}, {format_ts(r[14])})")
@@ -1171,7 +1171,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 8. REFUND_RECORDS ({len(data['refund_records'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO refund_records (refund_id, payment_id, merchant_id, gateway_refund_id, refund_arn, amount, currency, refund_reason, refund_speed, refund_status, bank_reversal_status, initiated_at, processed_at, raw_response) VALUES\n")
+        f.write("INSERT IGNORE INTO refund_records (refund_id, payment_id, merchant_id, gateway_refund_id, refund_arn, amount, currency, refund_reason, refund_speed, refund_status, bank_reversal_status, initiated_at, processed_at, raw_response) VALUES\n")
         rows = []
         for r in data["refund_records"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_num(r[5])}, {escape_sql_str(r[6])}, {escape_sql_str(r[7])}, {escape_sql_str(r[8])}, {escape_sql_str(r[9])}, {escape_sql_str(r[10])}, {format_ts(r[11])}, {format_ts(r[12])}, {escape_sql_json(r[13])})")
@@ -1181,7 +1181,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 9. INCIDENT_CASES ({len(data['incident_cases'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO incident_cases (incident_id, payment_id, incident_type, severity, case_status, trigger_source, assigned_investigator, title, description, opened_at, resolved_at, updated_at) VALUES\n")
+        f.write("INSERT IGNORE INTO incident_cases (incident_id, payment_id, incident_type, severity, case_status, trigger_source, assigned_investigator, title, description, opened_at, resolved_at, updated_at) VALUES\n")
         rows = []
         for r in data["incident_cases"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_str(r[6])}, {escape_sql_str(r[7])}, {escape_sql_str(r[8])}, {format_ts(r[9])}, {format_ts(r[10])}, {format_ts(r[11])})")
@@ -1191,7 +1191,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 10. INVESTIGATION_EVIDENCE ({len(data['investigation_evidence'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO investigation_evidence (evidence_id, incident_id, payment_id, evidence_source, evidence_type, file_path, raw_content, payload_checksum, captured_at) VALUES\n")
+        f.write("INSERT IGNORE INTO investigation_evidence (evidence_id, incident_id, payment_id, evidence_source, evidence_type, file_path, raw_content, payload_checksum, captured_at) VALUES\n")
         rows = []
         for r in data["investigation_evidence"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_str(r[6])}, {escape_sql_str(r[7])}, {format_ts(r[8])})")
@@ -1201,7 +1201,7 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 11. ML_ASSESSMENTS ({len(data['ml_assessments'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO ml_assessments (assessment_id, incident_id, payment_id, model_version, predicted_root_cause, anomaly_score, confidence_score, suggested_action, feature_snapshot, model_explanation, assessed_at) VALUES\n")
+        f.write("INSERT IGNORE INTO ml_assessments (assessment_id, incident_id, payment_id, model_version, predicted_root_cause, anomaly_score, confidence_score, suggested_action, feature_snapshot, model_explanation, assessed_at) VALUES\n")
         rows = []
         for r in data["ml_assessments"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {r[5]:.4f}, {r[6]:.4f}, {escape_sql_str(r[7])}, {escape_sql_json(r[8])}, {escape_sql_json(r[9])}, {format_ts(r[10])})")
@@ -1211,20 +1211,39 @@ def write_seed_sql(data, filename="seed.sql"):
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 12. RESOLUTIONS ({len(data['resolutions'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO resolutions (resolution_id, incident_id, payment_id, action_taken, resolution_type, resolved_by, resolution_notes, financial_impact_amount, liability_party, resolved_at) VALUES\n")
+        f.write("INSERT IGNORE INTO resolutions (resolution_id, incident_id, payment_id, action_taken, resolution_type, resolved_by, resolution_notes, financial_impact_amount, liability_party, resolved_at) VALUES\n")
         rows = []
         for r in data["resolutions"]:
             rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_str(r[6])}, {escape_sql_num(r[7])}, {escape_sql_str(r[8])}, {format_ts(r[9])})")
         f.write(",\n".join(rows) + ";\n\n")
 
-        # 13. AUDIT_EVENTS
+        # 13. AUDIT_EVENTS (Cryptographically chained SHA-256 ledger)
         f.write("-- -----------------------------------------------------------------------------\n")
         f.write(f"-- 13. AUDIT_EVENTS ({len(data['audit_events'])} rows)\n")
         f.write("-- -----------------------------------------------------------------------------\n")
-        f.write("INSERT INTO audit_events (audit_id, entity_name, entity_id, action, actor_type, actor_id, previous_state, new_state, ip_address, created_at) VALUES\n")
+        f.write("INSERT IGNORE INTO audit_events (audit_id, sequence_number, entity_name, entity_id, action, actor_type, actor_id, previous_state, new_state, ip_address, previous_event_hash, current_event_hash, created_at) VALUES\n")
         rows = []
-        for r in data["audit_events"]:
-            rows.append(f"({escape_sql_str(r[0])}, {escape_sql_str(r[1])}, {escape_sql_str(r[2])}, {escape_sql_str(r[3])}, {escape_sql_str(r[4])}, {escape_sql_str(r[5])}, {escape_sql_json(r[6])}, {escape_sql_json(r[7])}, {escape_sql_str(r[8])}, {format_ts(r[9])})")
+        prev_hash = "0" * 64
+        for seq, r in enumerate(data["audit_events"], 1):
+            aud_id = r[0]
+            ent_name = r[1]
+            ent_id = r[2]
+            act = r[3]
+            act_type = r[4]
+            act_id = r[5]
+            prev_st = r[6]
+            new_st = r[7]
+            ip = r[8]
+            ts = r[9]
+
+            prev_st_json = json.dumps(prev_st) if prev_st is not None else ""
+            new_st_json = json.dumps(new_st) if new_st is not None else ""
+
+            raw_hash_input = f"{seq}|{ent_name}|{ent_id}|{act}|{act_type}|{act_id}|{prev_st_json}|{new_st_json}|{prev_hash}"
+            curr_hash = hashlib.sha256(raw_hash_input.encode('utf-8')).hexdigest()
+
+            rows.append(f"({escape_sql_str(aud_id)}, {seq}, {escape_sql_str(ent_name)}, {escape_sql_str(ent_id)}, {escape_sql_str(act)}, {escape_sql_str(act_type)}, {escape_sql_str(act_id)}, {escape_sql_json(prev_st)}, {escape_sql_json(new_st)}, {escape_sql_str(ip)}, '{prev_hash}', '{curr_hash}', {format_ts(ts)})")
+            prev_hash = curr_hash
         f.write(",\n".join(rows) + ";\n\n")
 
         f.write("SET FOREIGN_KEY_CHECKS = 1;\n")
@@ -1246,5 +1265,15 @@ if __name__ == "__main__":
     print(f"Generated {len(data['resolutions'])} resolutions.")
     print(f"Generated {len(data['audit_events'])} audit events.")
     
-    write_seed_sql(data, "seed.sql")
-    print("Successfully wrote seed.sql!")
+    # Write to database/seed.sql and backend/src/main/resources/seed.sql
+    import os
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    db_seed = os.path.join(base_dir, "seed.sql")
+    backend_seed = os.path.abspath(os.path.join(base_dir, "..", "backend", "src", "main", "resources", "seed.sql"))
+
+    write_seed_sql(data, db_seed)
+    print(f"Successfully wrote {db_seed}!")
+
+    write_seed_sql(data, backend_seed)
+    print(f"Successfully wrote {backend_seed}!")
+

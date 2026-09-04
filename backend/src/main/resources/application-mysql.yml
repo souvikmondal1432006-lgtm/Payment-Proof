@@ -4,9 +4,9 @@ spring:
       on-profile: mysql
 
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:${DATABASE_URL:${SPRING_DATASOURCE_URL:}}}
+    username: ${DB_USER:${DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:}}}
+    password: ${DB_PASSWORD:${DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       pool-name: PaymentProofMySQLPool

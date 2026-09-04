@@ -4,7 +4,8 @@
  * Frontend MUST NOT communicate directly with MySQL or Python ML.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+const rawBase = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '');
+const API_BASE = rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`;
 const DEFAULT_TIMEOUT_MS = 6000;
 
 class ApiError extends Error {
@@ -108,7 +109,7 @@ async function request(endpoint, options = {}) {
 
     throw new ApiError(
       err.message || 'Network connection failure',
-      "Unable to connect to the payment investigation backend server (http://localhost:8080). Check your backend service status.",
+      "Unable to connect to the payment investigation backend server. Check your backend service status.",
       0,
       { originalError: err.message, stack: err.stack, endpoint: url },
       url

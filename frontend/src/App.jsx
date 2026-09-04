@@ -92,8 +92,8 @@ export default function App() {
           setSelectedCaseDetail(null);
           setGlobalError({
             title: 'BACKEND OFFLINE',
-            humanMessage: 'Unable to connect to the payment investigation backend server (http://localhost:8080). Check your backend service status.',
-            technicalDetails: casesData.reason ? (casesData.reason.humanMessage || casesData.reason.message) : 'Connection refused to backend port 8080',
+            humanMessage: 'Unable to connect to the payment investigation backend server. Check your backend service status.',
+            technicalDetails: casesData.reason ? (casesData.reason.humanMessage || casesData.reason.message) : 'Connection refused to payment investigation backend',
             endpoint: casesData.reason?.endpoint || '/api/incidents'
           });
           setIsLastKnownData(false);
@@ -116,7 +116,7 @@ export default function App() {
       setSelectedCaseDetail(null);
       setGlobalError({
         title: 'BACKEND OFFLINE',
-        humanMessage: 'Unable to connect to the payment investigation backend server (http://localhost:8080). Check your backend service status.',
+        humanMessage: 'Unable to connect to the payment investigation backend server. Check your backend service status.',
         technicalDetails: e.humanMessage || e.message,
         endpoint: e.endpoint || '/api'
       });

@@ -1,46 +1,21 @@
 -- =============================================================================
--- PAYMENT PROOF: Authoritative Relational Schema (MySQL 8.0+)
+-- PAYMENT PROOF: Cloud Production Relational Schema (MySQL 8.0+)
 -- Multi-Party Payment Discrepancy & Forensic Investigation Platform
+-- 
+-- Cloud-Safe Invariants:
+-- 1. Idempotent: Uses CREATE TABLE IF NOT EXISTS for zero data-loss on re-execution.
+-- 2. Non-Destructive: NO DROP DATABASE, DROP TABLE, or TRUNCATE statements.
+-- 3. Environment-Agnostic: NO hardcoded CREATE DATABASE or USE statements.
+-- 4. Complete Alignment: 100% synchronized with JPA entity classes and cryptographic audit ledger.
 -- =============================================================================
--- Design Notes:
--- 1. Represents 13 distinct entities in the payment ecosystem.
--- 2. Naturally captures multi-system contradictions (Bank vs Gateway vs Merchant vs Webhook).
--- 3. Employs DECIMAL(12, 2) for financial integrity and TIMESTAMP(3) for millisecond latency analysis.
--- 4. Fully indexed on foreign keys, external references (UTR, ARN, Order IDs), statuses, and timestamps.
--- =============================================================================
-
-CREATE DATABASE IF NOT EXISTS payment_proof CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE payment_proof;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
-DROP TABLE IF EXISTS audit_events;
-DROP TABLE IF EXISTS resolutions;
-DROP TABLE IF EXISTS ml_assessments;
-DROP TABLE IF EXISTS investigation_evidence;
-DROP TABLE IF EXISTS incident_cases;
-DROP TABLE IF EXISTS refund_records;
-DROP TABLE IF EXISTS settlement_records;
-DROP TABLE IF EXISTS webhook_records;
-DROP TABLE IF EXISTS merchant_order_records;
-DROP TABLE IF EXISTS gateway_records;
-DROP TABLE IF EXISTS bank_records;
-DROP TABLE IF EXISTS payment_events;
-DROP TABLE IF EXISTS payments;
-
--- Legacy table drop cleanup if present
-DROP TABLE IF EXISTS investigation_cases;
-DROP TABLE IF EXISTS contradiction_incidents;
-DROP TABLE IF EXISTS provider_telemetry;
-DROP TABLE IF EXISTS transactions;
-
-SET FOREIGN_KEY_CHECKS = 1;
-
 -- -----------------------------------------------------------------------------
 -- 1. PAYMENTS
--- Canonical payment attempt record representing the customer's intent to pay.
+-- Canonical payment attempt record representing customer intent to pay.
 -- -----------------------------------------------------------------------------
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     payment_id VARCHAR(64) PRIMARY KEY,
     merchant_id VARCHAR(64) NOT NULL,
     customer_id VARCHAR(64) NOT NULL,
@@ -79,7 +54,7 @@ CREATE TABLE payments (
 -- 2. PAYMENT_EVENTS
 -- High-resolution lifecycle event log tracking state transitions and timeline.
 -- -----------------------------------------------------------------------------
-CREATE TABLE payment_events (
+CREATE TABLE IF NOT EXISTS payment_events (
     event_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     event_type VARCHAR(64) NOT NULL COMMENT 'e.g. PAYMENT_INITIATED, AUTHENTICATION_REQUESTED, BANK_DEBIT_ACK, PAYMENT_CAPTURED',
@@ -107,7 +82,7 @@ CREATE TABLE payment_events (
 -- 3. BANK_RECORDS
 -- Core banking system (CBS), UPI switch (NPCI), and Card Network telemetry.
 -- -----------------------------------------------------------------------------
-CREATE TABLE bank_records (
+CREATE TABLE IF NOT EXISTS bank_records (
     bank_record_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     bank_name VARCHAR(64) NOT NULL COMMENT 'e.g. HDFC_BANK, ICICI_BANK, SBI, AXIS_BANK, KOTAK_BANK',
@@ -136,7 +111,7 @@ CREATE TABLE bank_records (
 -- 4. GATEWAY_RECORDS
 -- Payment aggregator and gateway processor telemetry (e.g. Razorpay, PayU, Cashfree).
 -- -----------------------------------------------------------------------------
-CREATE TABLE gateway_records (
+CREATE TABLE IF NOT EXISTS gateway_records (
     gateway_record_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     gateway_name VARCHAR(64) NOT NULL COMMENT 'e.g. RAZORPAY, CASHFREE, PAYU, BILLDESK, STRIPE',
@@ -167,7 +142,7 @@ CREATE TABLE gateway_records (
 -- 5. MERCHANT_ORDER_RECORDS
 -- Merchant checkout and Order Management System (OMS) cart & fulfillment telemetry.
 -- -----------------------------------------------------------------------------
-CREATE TABLE merchant_order_records (
+CREATE TABLE IF NOT EXISTS merchant_order_records (
     merchant_order_record_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
@@ -209,7 +184,7 @@ CREATE TABLE merchant_order_records (
 -- 6. WEBHOOK_RECORDS
 -- Webhook notification dispatch and delivery logs from Gateway to Merchant.
 -- -----------------------------------------------------------------------------
-CREATE TABLE webhook_records (
+CREATE TABLE IF NOT EXISTS webhook_records (
     webhook_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
@@ -248,7 +223,7 @@ CREATE TABLE webhook_records (
 -- 7. SETTLEMENT_RECORDS
 -- Payout reconciliation ledger for funds settled from Gateway to Merchant.
 -- -----------------------------------------------------------------------------
-CREATE TABLE settlement_records (
+CREATE TABLE IF NOT EXISTS settlement_records (
     settlement_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
@@ -285,7 +260,7 @@ CREATE TABLE settlement_records (
 -- 8. REFUND_RECORDS
 -- Refund lifecycle and banking reversal tracking.
 -- -----------------------------------------------------------------------------
-CREATE TABLE refund_records (
+CREATE TABLE IF NOT EXISTS refund_records (
     refund_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     merchant_id VARCHAR(64) NOT NULL,
@@ -325,7 +300,7 @@ CREATE TABLE refund_records (
 -- 9. INCIDENT_CASES
 -- Root discrepancy and contradiction investigation cases.
 -- -----------------------------------------------------------------------------
-CREATE TABLE incident_cases (
+CREATE TABLE IF NOT EXISTS incident_cases (
     incident_id VARCHAR(64) PRIMARY KEY,
     payment_id VARCHAR(64) NOT NULL,
     incident_type ENUM(
@@ -377,7 +352,7 @@ CREATE TABLE incident_cases (
 -- 10. INVESTIGATION_EVIDENCE
 -- Multi-source telemetry artifacts, network logs, and digital proof items.
 -- -----------------------------------------------------------------------------
-CREATE TABLE investigation_evidence (
+CREATE TABLE IF NOT EXISTS investigation_evidence (
     evidence_id VARCHAR(64) PRIMARY KEY,
     incident_id VARCHAR(64) NOT NULL,
     payment_id VARCHAR(64) NOT NULL,
@@ -416,7 +391,7 @@ CREATE TABLE investigation_evidence (
 -- 11. ML_ASSESSMENTS
 -- Machine Learning model diagnostics, root cause prediction, and anomaly scores.
 -- -----------------------------------------------------------------------------
-CREATE TABLE ml_assessments (
+CREATE TABLE IF NOT EXISTS ml_assessments (
     assessment_id VARCHAR(64) PRIMARY KEY,
     incident_id VARCHAR(64) NOT NULL,
     payment_id VARCHAR(64) NOT NULL,
@@ -449,7 +424,7 @@ CREATE TABLE ml_assessments (
 -- 12. RESOLUTIONS
 -- Authoritative, binding dispute and incident resolution records.
 -- -----------------------------------------------------------------------------
-CREATE TABLE resolutions (
+CREATE TABLE IF NOT EXISTS resolutions (
     resolution_id VARCHAR(64) PRIMARY KEY,
     incident_id VARCHAR(64) NOT NULL UNIQUE,
     payment_id VARCHAR(64) NOT NULL,
@@ -490,9 +465,9 @@ CREATE TABLE resolutions (
 
 -- -----------------------------------------------------------------------------
 -- 13. AUDIT_EVENTS
--- Immutable audit log capturing all system operations and user interactions.
+-- Cryptographically linked audit ledger with SHA-256 tamper-evident chaining.
 -- -----------------------------------------------------------------------------
-CREATE TABLE audit_events (
+CREATE TABLE IF NOT EXISTS audit_events (
     audit_id VARCHAR(64) PRIMARY KEY,
     sequence_number BIGINT NOT NULL,
     entity_name VARCHAR(32) NOT NULL,
@@ -519,3 +494,5 @@ CREATE TABLE audit_events (
     INDEX idx_aud_actor (actor_type, actor_id),
     INDEX idx_aud_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET FOREIGN_KEY_CHECKS = 1;
