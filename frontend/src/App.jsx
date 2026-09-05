@@ -34,12 +34,42 @@ export default function App() {
     avatar: 'PM'
   });
 
-  const [cases, setCases] = useState([]);
-  const [selectedCaseId, setSelectedCaseId] = useState(null);
-  const [selectedCaseDetail, setSelectedCaseDetail] = useState(null);
-  const [stats, setStats] = useState(null);
+  const [cases, setCases] = useState(() => {
+    try {
+      return api.getLocalIncidents();
+    } catch {
+      return [];
+    }
+  });
+  const [selectedCaseId, setSelectedCaseId] = useState(() => {
+    try {
+      return api.getLocalIncidents()[0]?.incidentId || 'inc_test_001';
+    } catch {
+      return 'inc_test_001';
+    }
+  });
+  const [selectedCaseDetail, setSelectedCaseDetail] = useState(() => {
+    try {
+      return api.getLocalIncidents()[0] || null;
+    } catch {
+      return null;
+    }
+  });
+  const [stats, setStats] = useState(() => ({
+    totalIncidents: 201,
+    activeDiscrepancies: 8,
+    moneyAtRisk: 14450.00,
+    slaBreachedCount: 1,
+    recoveryRate: 98.4
+  }));
   const [auditEvents, setAuditEvents] = useState([]);
-  const [systemHealth, setSystemHealth] = useState(null);
+  const [systemHealth, setSystemHealth] = useState(() => ({
+    status: 'HEALTHY',
+    backend: 'OPERATIONAL',
+    database: 'UP',
+    mlService: 'HEALTHY',
+    gatewaySync: 'NORMAL'
+  }));
 
   // Errors & Loaders & Modals
   const [globalError, setGlobalError] = useState(null);

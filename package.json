@@ -4,7 +4,7 @@
   "description": "Payment Proof: Multi-Party Inconsistency Investigation & AI Forensic Platform",
   "scripts": {
     "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
+    "build": "npm --prefix frontend run build && node -e \"const fs=require('fs'); fs.cpSync('frontend/dist', 'dist', {recursive: true});\"",
     "preview": "npm --prefix frontend run preview",
     "test:backend": ".\\.maven\\bin\\mvn -f backend/pom.xml test",
     "test:e2e": "python test_e2e_all_scenarios.py",
