@@ -109,7 +109,7 @@ public class MlServiceClient {
                     .bodyToMono(String.class)
                     .timeout(Duration.ofMillis(1200))
                     .block();
-            return status != null && status.contains("healthy");
+            return status != null && status.toLowerCase().contains("healthy");
         } catch (Exception e) {
             return false;
         }
