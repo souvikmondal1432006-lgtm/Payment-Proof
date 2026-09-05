@@ -25,7 +25,7 @@ export default function CommandCenterView({
   const highCases = cases.filter(c => c.severity === 'HIGH');
   const totalMoneyAtRisk = cases.reduce((acc, c) => acc + (c.moneyAtRisk || 0), 0);
 
-  // Ensure Hero Pitch Scenario (inc_test_001) is pinned at the top
+  // Ensure Flagship Forensic Scenario (inc_test_001) is pinned at the top
   const sortedCases = [...cases].sort((a, b) => {
     if ((a.incidentId || a.id) === 'inc_test_001') return -1;
     if ((b.incidentId || b.id) === 'inc_test_001') return 1;
@@ -85,7 +85,7 @@ export default function CommandCenterView({
         </div>
       </div>
 
-      {/* HERO PITCH DEMO HIGHLIGHT CARD */}
+      {/* FLAGSHIP FORENSIC HIGHLIGHT CARD */}
       <div style={{
         background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(0, 0, 0, 0.8))',
         border: '1px solid rgba(239, 68, 68, 0.45)',
@@ -101,7 +101,7 @@ export default function CommandCenterView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '680px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span className="badge" style={{ background: '#ef4444', color: '#ffffff', fontWeight: 800, fontSize: '0.7rem' }}>
-              HERO PITCH SCENARIO
+              FLAGSHIP FORENSIC SCENARIO
             </span>
             <span className="badge font-mono" style={{ background: 'rgba(255,255,255,0.1)', color: '#ffffff', fontSize: '0.72rem' }}>
               inc_test_001 • pay_test_001

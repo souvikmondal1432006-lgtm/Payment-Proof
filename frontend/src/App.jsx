@@ -116,7 +116,7 @@ export default function App() {
         setSelectedCaseId(firstId);
         loadCaseDetail(firstId);
       } else {
-        // Authoritative fallback: Never leave the pitch video or presentation empty
+        // Authoritative fallback: Never leave the UI or presentation empty
         const fallbackList = api.getLocalIncidents();
         setCases(fallbackList);
         const firstId = fallbackList[0]?.incidentId || fallbackList[0]?.id;
